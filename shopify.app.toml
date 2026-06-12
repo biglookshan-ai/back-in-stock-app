@@ -1,0 +1,45 @@
+# Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
+
+client_id = "6a3953d2d643e64549366eb0e0e61e08"
+name = "Email Me Test"
+handle = "cinegearpro-back-in-stock"
+embedded = true
+application_url = "https://shopify.dev/apps/default-app-home"
+
+[access_scopes]
+# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
+scopes = "read_products,read_inventory"
+
+[auth]
+redirect_urls = [ "https://shopify.dev/apps/default-app-home/api/auth" ]
+
+[webhooks]
+api_version = "2026-07"
+
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/inventory/update"
+  topics = [ "inventory_levels/update" ]
+
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/products/update"
+  topics = [ "products/update" ]
+
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/app/uninstalled"
+  topics = [ "app/uninstalled" ]
+
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/app/scopes_update"
+  topics = [ "app/scopes_update" ]
+
+[app_proxy]
+url = "https://shopify.dev/apps/default-app-home"
+subpath = "back-in-stock"
+prefix = "apps"
+
+[pos]
+embedded = false
+
+[build]
+include_config_on_deploy = true
+automatically_update_urls_on_dev = true

@@ -1,0 +1,7 @@
+api_version = "2025-01"
+
+[[extensions]]
+type = "theme"
+name = "Back in Stock"
+handle = "back-in-stock"
+uid = "dcb47730-76ca-165f-85ee-5ec91cc7e23bee498744"

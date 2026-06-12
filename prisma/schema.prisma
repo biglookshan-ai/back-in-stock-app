@@ -1,0 +1,114 @@
+// CINEGEARPRO 到货提醒 App — Prisma schema
+// Dev: sqlite (零配置，开箱即跑)。Prod 建议切 PostgreSQL：
+//   provider = "postgresql"，url = env("DATABASE_URL")
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ── Shopify session（模板自带，勿删） ──────────────────────────────
+model Session {
+  id                  String    @id
+  shop                String
+  state               String
+  isOnline            Boolean   @default(false)
+  scope               String?
+  expires             DateTime?
+  accessToken         String
+  userId              BigInt?
+  firstName           String?
+  lastName            String?
+  email               String?
+  accountOwner        Boolean   @default(false)
+  locale              String?
+  collaborator        Boolean?  @default(false)
+  emailVerified       Boolean?  @default(false)
+  refreshToken        String?
+  refreshTokenExpires DateTime?
+}
+
+// ── 订阅记录（最核心） ────────────────────────────────────────────
+model Subscription {
+  id            String    @id @default(cuid())
+  shop          String // myshopify 域名，作隔离键
+  email         String
+  productId     String
+  variantId     String
+  barcode          String? // ★ 精准记录客户感兴趣变体的条码
+  customerName     String? // 客户姓名（弹窗可填）
+  marketingConsent Boolean   @default(false) // 营销订阅同意
+  productTitle     String // 快照，防改名后丢失上下文
+  variantTitle     String
+  productHandle    String?
+  productImage     String? // 产品图（邮件产品卡用）
+  price            String? // 格式化价格快照，如 "£749.95"
+  status           String    @default("ACTIVE") // ACTIVE(等待) | NOTIFIED(已发送) | ORDERED(已订购) | CANCELLED
+  source           String? // product_page | collection
+  locale           String?
+  createdAt        DateTime  @default(now()) // ★ 订阅时间
+  notifiedAt       DateTime? // ★ 到货发信时间
+  orderedAt        DateTime? // 转化：订阅后下单时间
+
+  emailLogs EmailLog[]
+
+  @@unique([shop, email, variantId]) // 同邮箱同变体不重复订阅
+  @@index([shop, variantId, status])
+  @@index([shop, createdAt])
+}
+
+// ── 邮件模板（确认 / 到货） ────────────────────────────────────────
+model EmailTemplate {
+  id        String   @id @default(cuid())
+  shop      String
+  type      String // CONFIRMATION | BACK_IN_STOCK
+  subject   String
+  htmlBody  String
+  enabled   Boolean  @default(true)
+  updatedAt DateTime @updatedAt
+
+  @@unique([shop, type])
+}
+
+// ── 发信记录（统计来源，独立于邮件服务商） ─────────────────────────
+model EmailLog {
+  id             String   @id @default(cuid())
+  shop           String
+  subscriptionId String
+  type           String // CONFIRMATION | BACK_IN_STOCK
+  toEmail        String
+  status         String // SENT | FAILED
+  error          String?
+  sentAt         DateTime @default(now())
+
+  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@index([shop, type, sentAt])
+}
+
+// ── 店铺设置 ──────────────────────────────────────────────────────
+model Settings {
+  id               String  @id @default(cuid())
+  shop             String  @unique
+  buttonText       String  @default("Email me when Available")
+  buttonColor      String  @default("#000000")
+  showWhenPreorder Boolean @default(true) // 缺货可预订时是否也显示提醒按钮
+  fromName         String  @default("CINEGEARPRO")
+  fromEmail        String  @default("")
+
+  // 发送规则
+  minStockThreshold             Int     @default(1) // 库存达到此值才发到货通知
+  notifyAtZeroIfContinueSelling Boolean @default(false) // 缺货可继续售卖时，库存=0 也通知
+  // 小部件显示规则：参与库存计算的地点 gid（逗号分隔，空=全部地点）
+  displayLocationIds            String  @default("")
+
+  // 品牌 / 公司信息（邮件用）
+  logoUrl        String @default("") // 邮件头部 logo 图片 URL
+  brandColor     String @default("#1a1a1a") // 邮件主色（按钮/标题）
+  websiteUrl     String @default("") // 官网链接
+  companyAddress String @default("") // 公司地址（页脚）
+  supportEmail   String @default("") // 客服邮箱（页脚）
+}

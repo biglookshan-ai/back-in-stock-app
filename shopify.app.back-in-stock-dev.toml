@@ -1,0 +1,49 @@
+# Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
+
+client_id = "97309ed864212552105a92b64020fda9"
+application_url = "https://shopify.dev/apps/default-app-home"
+embedded = true
+name = "back-in-stock-dev"
+
+[webhooks]
+api_version = "2026-07"
+
+  [[webhooks.subscriptions]]
+  topics = [ "inventory_levels/update" ]
+  uri = "/webhooks/inventory/update"
+
+  [[webhooks.subscriptions]]
+  topics = [ "products/update" ]
+  uri = "/webhooks/products/update"
+
+  # 转化追踪需要 orders/create + read_orders（受保护客户数据）。
+  # 先在 Developer Dashboard 开启 Protected customer data access 后，再取消下面注释。
+  # [[webhooks.subscriptions]]
+  # topics = [ "orders/create" ]
+  # uri = "/webhooks/orders/create"
+
+  [[webhooks.subscriptions]]
+  topics = [ "app/uninstalled" ]
+  uri = "/webhooks/app/uninstalled"
+
+  [[webhooks.subscriptions]]
+  topics = [ "app/scopes_update" ]
+  uri = "/webhooks/app/scopes_update"
+
+[access_scopes]
+# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
+scopes = "read_inventory,read_products,read_locations"
+
+[auth]
+redirect_urls = [ "https://shopify.dev/apps/default-app-home/api/auth" ]
+
+[app_proxy]
+# 注意：不能带路径！dev 只替换域名、保留路径，带路径会导致 /xxx/subscribe 404。
+# 生产部署时把这里换成你的真实 app 域名（同样不带额外路径）。
+url = "https://example.com"
+subpath = "back-in-stock"
+prefix = "apps"
+
+[build]
+include_config_on_deploy = true
+automatically_update_urls_on_dev = true

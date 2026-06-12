@@ -1,0 +1,63 @@
+.bis-root { margin: 12px 0; }
+
+.bis-button {
+  display: inline-block;
+  width: var(--bis-btn-width, 100%);
+  padding: var(--bis-btn-pad, 14px) 20px;
+  background: var(--bis-btn-bg, #000);
+  color: var(--bis-btn-color, #fff);
+  border: none;
+  border-radius: var(--bis-btn-radius, 6px);
+  font-size: var(--bis-btn-font, 15px);
+  font-weight: 600;
+  cursor: pointer;
+  letter-spacing: .3px;
+}
+.bis-button:hover { opacity: .9; }
+
+.bis-overlay {
+  position: fixed; inset: 0; z-index: 99999;
+  background: rgba(0, 0, 0, var(--bis-overlay-op, .5));
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px;
+}
+.bis-dialog {
+  position: relative;
+  background: var(--bis-modal-bg, #fff);
+  color: var(--bis-modal-text, #1a1a1a);
+  border-radius: var(--bis-modal-radius, 10px);
+  width: 100%; max-width: var(--bis-modal-w, 380px);
+  padding: var(--bis-modal-pad, 28px);
+  box-shadow: 0 12px 40px rgba(0,0,0,.25);
+}
+.bis-close {
+  position: absolute; top: 8px; right: 12px;
+  border: none; background: none; font-size: 26px;
+  line-height: 1; cursor: pointer; color: #888;
+}
+.bis-title { margin: 0 0 6px; font-size: var(--bis-title-size, 18px); color: var(--bis-modal-text, #1a1a1a); }
+.bis-product { margin: 0 0 16px; color: #666; font-size: 14px; }
+.bis-input {
+  width: 100%; padding: 12px 14px; box-sizing: border-box;
+  border: 1px solid #ccc; border-radius: var(--bis-btn-radius, 6px); font-size: 15px;
+  margin-bottom: 12px;
+}
+.bis-submit {
+  width: 100%; padding: 13px;
+  background: var(--bis-btn-bg, #000);
+  color: var(--bis-btn-color, #fff);
+  border: none;
+  border-radius: var(--bis-btn-radius, 6px);
+  font-size: 15px; font-weight: 600; cursor: pointer;
+}
+.bis-submit:disabled { opacity: .6; cursor: default; }
+.bis-msg { color: #c0392b; font-size: 13px; margin-top: 10px; min-height: 16px; }
+.bis-hp { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
+
+.bis-select { appearance: auto; background: #fff; }
+.bis-check-row {
+  display: flex; align-items: flex-start; gap: 8px;
+  font-size: 13px; color: #444; margin: 4px 0 14px; cursor: pointer;
+}
+.bis-check { margin-top: 2px; flex: 0 0 auto; }
+.bis-footer { color: #999; font-size: 11px; margin: 12px 0 0; line-height: 1.5; }

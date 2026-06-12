@@ -1,0 +1,284 @@
+{% comment %}
+  到货提醒按钮 App Block —— 商家在主题编辑器的「商品」模板里添加。
+  通过 {{ product | json }} 把全部变体（含 available / inventory_policy /
+  inventory_quantity / barcode）暴露给前端 JS，由 JS 判定库存状态并渲染按钮/弹窗。
+{% endcomment %}
+
+<script>
+  window.__BIS_DATA__ = window.__BIS_DATA__ || {};
+  window.__BIS_DATA__["{{ product.id }}"] = {{ product | json }};
+
+  // storefront 的 product json 不暴露 inventory_quantity，这里用 Liquid 在服务端
+  // 算出每个变体的真实库存状态，供前端判定「缺货可预订」(State A)。
+  window.__BIS_INV__ = window.__BIS_INV__ || {};
+  window.__BIS_INV__["{{ product.id }}"] = {
+    {% for v in product.variants %}"{{ v.id }}": {
+      "available": {{ v.available | json }},
+      "policy": {{ v.inventory_policy | json }},
+      "managed": {{ v.inventory_management | json }},
+      "qty": {{ v.inventory_quantity | default: 0 }}
+    }{% unless forloop.last %},{% endunless %}
+    {% endfor %}
+  };
+</script>
+
+<div
+  class="bis-root"
+  data-bis
+  data-product-id="{{ product.id }}"
+  data-show-preorder="{{ block.settings.show_when_preorder }}"
+  data-button-text="{{ block.settings.button_text | escape }}"
+  data-button-color="{{ block.settings.button_color }}"
+  data-modal-title="{{ block.settings.modal_title | escape }}"
+  data-submit-text="{{ block.settings.submit_text | escape }}"
+  data-email-placeholder="{{ block.settings.email_placeholder | escape }}"
+  data-collect-name="{{ block.settings.collect_name }}"
+  data-name-placeholder="{{ block.settings.name_placeholder | escape }}"
+  data-show-marketing="{{ block.settings.show_marketing }}"
+  data-marketing-label="{{ block.settings.marketing_label | escape }}"
+  data-marketing-default="{{ block.settings.marketing_default }}"
+  data-footer-text="{{ block.settings.footer_text | escape }}"
+  data-success-title="{{ block.settings.success_title | escape }}"
+  data-success-message="{{ block.settings.success_message | escape }}"
+  data-already-title="{{ block.settings.already_title | escape }}"
+  data-already-message="{{ block.settings.already_message | escape }}"
+  data-error-invalid-email="{{ block.settings.error_invalid_email | escape }}"
+  data-error-generic="{{ block.settings.error_generic | escape }}"
+  data-error-network="{{ block.settings.error_network | escape }}"
+  data-btn-text-color="{{ block.settings.button_text_color }}"
+  data-btn-font="{{ block.settings.button_font_size }}"
+  data-btn-pad="{{ block.settings.button_padding }}"
+  data-btn-radius="{{ block.settings.button_radius }}"
+  data-btn-full="{{ block.settings.button_full_width }}"
+  data-modal-w="{{ block.settings.modal_width }}"
+  data-modal-bg="{{ block.settings.modal_bg }}"
+  data-modal-text="{{ block.settings.modal_text_color }}"
+  data-modal-radius="{{ block.settings.modal_radius }}"
+  data-modal-pad="{{ block.settings.modal_padding }}"
+  data-title-size="{{ block.settings.modal_title_size }}"
+  data-overlay-op="{{ block.settings.overlay_opacity }}"
+  data-proxy="/apps/back-in-stock"
+  {{ block.shopify_attributes }}
+></div>
+
+{% schema %}
+{
+  "name": "Back in Stock 按钮",
+  "target": "section",
+  "enabled_on": { "templates": ["product"] },
+  "stylesheet": "back-in-stock.css",
+  "javascript": "back-in-stock.js",
+  "settings": [
+    {
+      "type": "text",
+      "id": "button_text",
+      "label": "按钮文案",
+      "default": "Email me when Available"
+    },
+    {
+      "type": "color",
+      "id": "button_color",
+      "label": "按钮颜色",
+      "default": "#000000"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_when_preorder",
+      "label": "缺货但可预订时也显示提醒按钮",
+      "default": true
+    },
+    {
+      "type": "header",
+      "content": "弹窗"
+    },
+    {
+      "type": "text",
+      "id": "modal_title",
+      "label": "弹窗标题",
+      "default": "Get notified when it's back"
+    },
+    {
+      "type": "text",
+      "id": "submit_text",
+      "label": "提交按钮文案",
+      "default": "Notify me"
+    },
+    {
+      "type": "text",
+      "id": "email_placeholder",
+      "label": "邮箱输入框提示",
+      "default": "Email address..."
+    },
+    {
+      "type": "checkbox",
+      "id": "collect_name",
+      "label": "收集客户姓名",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "name_placeholder",
+      "label": "姓名输入框提示",
+      "default": "Your name"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_marketing",
+      "label": "显示营销同意勾选框",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "marketing_label",
+      "label": "营销勾选框文案",
+      "default": "Be first to know about restocks and special offers."
+    },
+    {
+      "type": "checkbox",
+      "id": "marketing_default",
+      "label": "营销勾选框默认勾选",
+      "default": true
+    },
+    {
+      "type": "textarea",
+      "id": "footer_text",
+      "label": "底部说明",
+      "default": "We will notify you when this product is in stock. We do not share your address with anybody else."
+    },
+    {
+      "type": "header",
+      "content": "提示文案（成功 / 失败）"
+    },
+    {
+      "type": "text",
+      "id": "success_title",
+      "label": "订阅成功标题",
+      "default": "You're on the list ✓"
+    },
+    {
+      "type": "textarea",
+      "id": "success_message",
+      "label": "订阅成功说明",
+      "default": "We'll email you when it's back."
+    },
+    {
+      "type": "text",
+      "id": "already_title",
+      "label": "已订阅过的标题",
+      "default": "You're already on the list ✓"
+    },
+    {
+      "type": "textarea",
+      "id": "already_message",
+      "label": "已订阅过的说明",
+      "default": "We've already got you down for this one — we'll be in touch when it's back."
+    },
+    {
+      "type": "text",
+      "id": "error_invalid_email",
+      "label": "邮箱格式错误提示",
+      "default": "Please enter a valid email."
+    },
+    {
+      "type": "text",
+      "id": "error_generic",
+      "label": "通用错误提示",
+      "default": "Something went wrong. Please try again."
+    },
+    {
+      "type": "text",
+      "id": "error_network",
+      "label": "网络错误提示",
+      "default": "Network error. Please try again."
+    },
+    {
+      "type": "header",
+      "content": "按钮样式"
+    },
+    {
+      "type": "color",
+      "id": "button_text_color",
+      "label": "按钮文字颜色",
+      "default": "#ffffff"
+    },
+    {
+      "type": "range",
+      "id": "button_font_size",
+      "label": "按钮字号",
+      "min": 12, "max": 22, "step": 1, "unit": "px",
+      "default": 15
+    },
+    {
+      "type": "range",
+      "id": "button_padding",
+      "label": "按钮上下间距",
+      "min": 8, "max": 24, "step": 1, "unit": "px",
+      "default": 14
+    },
+    {
+      "type": "range",
+      "id": "button_radius",
+      "label": "按钮圆角",
+      "min": 0, "max": 30, "step": 1, "unit": "px",
+      "default": 6
+    },
+    {
+      "type": "checkbox",
+      "id": "button_full_width",
+      "label": "按钮占满宽度",
+      "default": true
+    },
+    {
+      "type": "header",
+      "content": "弹窗样式"
+    },
+    {
+      "type": "range",
+      "id": "modal_width",
+      "label": "弹窗宽度",
+      "min": 300, "max": 560, "step": 10, "unit": "px",
+      "default": 380
+    },
+    {
+      "type": "color",
+      "id": "modal_bg",
+      "label": "弹窗背景色",
+      "default": "#ffffff"
+    },
+    {
+      "type": "color",
+      "id": "modal_text_color",
+      "label": "弹窗文字颜色",
+      "default": "#1a1a1a"
+    },
+    {
+      "type": "range",
+      "id": "modal_radius",
+      "label": "弹窗圆角",
+      "min": 0, "max": 24, "step": 1, "unit": "px",
+      "default": 10
+    },
+    {
+      "type": "range",
+      "id": "modal_padding",
+      "label": "弹窗内边距",
+      "min": 16, "max": 40, "step": 2, "unit": "px",
+      "default": 28
+    },
+    {
+      "type": "range",
+      "id": "modal_title_size",
+      "label": "弹窗标题字号",
+      "min": 14, "max": 28, "step": 1, "unit": "px",
+      "default": 18
+    },
+    {
+      "type": "range",
+      "id": "overlay_opacity",
+      "label": "遮罩透明度",
+      "min": 0, "max": 90, "step": 5, "unit": "%",
+      "default": 50
+    }
+  ]
+}
+{% endschema %}
