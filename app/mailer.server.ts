@@ -63,6 +63,10 @@ class SmtpMailer implements MailerAdapter {
       port: Number(process.env.SMTP_PORT || 587),
       secure: process.env.SMTP_SECURE === "true",
       auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+      // 防止云主机网络问题导致连接长时间挂起
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 15000,
     });
     return this.transporter;
   }

@@ -48,6 +48,5 @@ subpath = "back-in-stock"
 prefix = "apps"
 
 [build]
-include_config_on_deploy = true
 # 部署到固定域名后关掉：避免本地误跑 dev 把生产 URL 改回隧道。
 automatically_update_urls_on_dev = false

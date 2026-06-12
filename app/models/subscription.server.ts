@@ -118,8 +118,13 @@ export async function createSubscription(input: SubscribeInput) {
     },
   });
 
-  // 只在「不是已经在等待中」时发确认信，避免重复点订阅被刷屏
-  if (!alreadySubscribed) await sendConfirmation(sub.id);
+  // 后台发确认信，不阻塞响应（SMTP 慢/超时不应让前端报 Network error）。
+  // Railway 是常驻 Node 进程，fire-and-forget 的 promise 会在后台跑完。
+  if (!alreadySubscribed) {
+    void sendConfirmation(sub.id).catch((e) =>
+      console.error("[mailer] confirmation send failed", e),
+    );
+  }
   return { sub, alreadySubscribed };
 }
 
