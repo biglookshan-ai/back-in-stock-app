@@ -1,7 +1,7 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
 client_id = "97309ed864212552105a92b64020fda9"
-application_url = "https://shopify.dev/apps/default-app-home"
+application_url = "https://back-in-stock-app-production.up.railway.app"
 embedded = true
 name = "back-in-stock-dev"
 
@@ -35,15 +35,19 @@ api_version = "2026-07"
 scopes = "read_inventory,read_products,read_locations"
 
 [auth]
-redirect_urls = [ "https://shopify.dev/apps/default-app-home/api/auth" ]
+redirect_urls = [
+  "https://back-in-stock-app-production.up.railway.app/auth/callback",
+  "https://back-in-stock-app-production.up.railway.app/auth/shopify/callback",
+  "https://back-in-stock-app-production.up.railway.app/api/auth/callback"
+]
 
 [app_proxy]
-# 注意：不能带路径！dev 只替换域名、保留路径，带路径会导致 /xxx/subscribe 404。
-# 生产部署时把这里换成你的真实 app 域名（同样不带额外路径）。
-url = "https://example.com"
+# 不能带路径！storefront /apps/back-in-stock/subscribe 会被转发到 <url>/subscribe。
+url = "https://back-in-stock-app-production.up.railway.app"
 subpath = "back-in-stock"
 prefix = "apps"
 
 [build]
 include_config_on_deploy = true
-automatically_update_urls_on_dev = true
+# 部署到固定域名后关掉：避免本地误跑 dev 把生产 URL 改回隧道。
+automatically_update_urls_on_dev = false
