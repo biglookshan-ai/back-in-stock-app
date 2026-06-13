@@ -1,13 +1,14 @@
 // 公开接口（App Proxy）：按「所选库存地点」计算每个变体是否应显示到货提醒按钮。
 // storefront 拿不到分地点库存，故由后端用 Admin API 计算后返回。
 import type { LoaderFunctionArgs } from "@remix-run/node";
+import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
 import { getSettings } from "../models/subscription.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session, admin } = await authenticate.public.appProxy(request);
   if (!session || !admin) {
-    return Response.json({ error: "unauthorized" }, { status: 401 });
+    return json({ error: "unauthorized" }, { status: 401 });
   }
   const shop = session.shop;
   const url = new URL(request.url);
@@ -56,8 +57,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       }`,
       { variables: { id: productId } },
     );
-    const json = await resp.json();
-    variants = (json?.data?.product?.variants?.edges ?? []).map((e: any) => ({
+    const respJson = await resp.json();
+    variants = (respJson?.data?.product?.variants?.edges ?? []).map((e: any) => ({
       id: e.node.id,
       policy: e.node.inventoryPolicy, // CONTINUE | DENY
       levels: (e.node.inventoryItem?.inventoryLevels?.edges ?? []).map((l: any) => ({
@@ -66,7 +67,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       })),
     }));
   } catch (e) {
-    return Response.json({ error: "lookup_failed" }, { status: 502, headers: noStore });
+    return json({ error: "lookup_failed" }, { status: 502, headers: noStore });
   }
 
   // 每个变体：所选地点库存 <= 0 才算缺货 → 按状态决定是否显示按钮
@@ -85,5 +86,5 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     result[numericId] = { show };
   }
 
-  return Response.json({ variants: result }, { headers: noStore });
+  return json({ variants: result }, { headers: noStore });
 };
