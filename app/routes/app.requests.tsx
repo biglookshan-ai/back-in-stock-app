@@ -132,7 +132,7 @@ export default function Requests() {
     fetcher.submit({ intent, id }, { method: "POST" });
 
   return (
-    <Page>
+    <Page primaryAction={{ content: "手动添加订阅", url: "/app/requests/new" }}>
       <TitleBar title="请求列表" />
       <Card padding="0">
         <Tabs

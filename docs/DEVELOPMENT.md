@@ -138,3 +138,18 @@
 - 群发为内联顺序发;高并发需队列(BullMQ / Cloudflare Queues)。
 - 转化追踪默认关闭(等 Protected data 审批)。
 - 可选增强:多语言、折扣码、推荐商品、Web Push、A/B 测试。
+
+## 9. 已生产部署(2026-06)
+
+- 全栈:**Railway**(app + PostgreSQL,GitHub 自动部署)+ **Cloudflare**(DNS)+ **Resend**(邮件)。
+- ⚠️ **Railway 封外发 SMTP**(Hobby plan,官方政策防滥用)→ 邮件改走 **Resend HTTP API**(已验证 SENT)。发件域名 `cinegearpro.co.uk` 在 Resend 验证,发件人 `chill@cinegearpro.co.uk`。
+- ⚠️ **`Response.json()` 在 `remix-serve` 运行时不可用** → 公开接口改用 Remix `json()` 助手。
+- 数据库 SQLite→Postgres:`provider=postgresql` + `DATABASE_URL`(Railway 用 public URL,内网 `.railway.internal` 首连易超时)。
+
+## 10. 未来功能候选(记录,未实现)
+
+- **Lark AnyCross 发信链路**(替代/备选 Resend):App 写订阅到 **Lark Base 表** → AnyCross「Send Emails Based on Lark Base Records」模板触发 → Mail Helper(**Lark SMTP,从 Lark 侧发,绕开 Railway 封锁**)发邮件 → Update record 写回状态 → App 读回 Base 同步 EmailLog。
+  - 可行,且解决「Railway 封 SMTP」核心矛盾(SMTP 在 Lark 侧)。
+  - 软肋:状态**异步**(需轮询/回调 Base)、Base 触发**有延迟**、仍受 **Lark 每日发信上限**、链路长。
+  - 适合「内部通知 / 数据进 Base 分析」;对外事务邮件 Resend 更优。
+- **手动添加 / 导入订阅**:admin 手动录入订阅(产品/变体经 Resource Picker 选,设状态,不发确认信);CSV 导入(格式待定)。便于从其它 app 迁移历史订阅数据。

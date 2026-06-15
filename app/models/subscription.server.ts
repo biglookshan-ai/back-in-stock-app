@@ -128,6 +128,48 @@ export async function createSubscription(input: SubscribeInput) {
   return { sub, alreadySubscribed };
 }
 
+// 手动添加订阅（后台录入 / 从其它 app 迁移）：可设状态，不发确认信。
+export async function createManualSubscription(
+  input: SubscribeInput & { status?: string },
+) {
+  return prisma.subscription.upsert({
+    where: {
+      shop_email_variantId: {
+        shop: input.shop,
+        email: input.email,
+        variantId: input.variantId,
+      },
+    },
+    update: {
+      status: input.status ?? "ACTIVE",
+      customerName: input.customerName ?? undefined,
+      marketingConsent: input.marketingConsent ?? undefined,
+      productTitle: input.productTitle,
+      variantTitle: input.variantTitle,
+      productHandle: input.productHandle ?? undefined,
+      barcode: input.barcode ?? undefined,
+      productImage: input.productImage ?? undefined,
+      price: input.price ?? undefined,
+    },
+    create: {
+      shop: input.shop,
+      email: input.email,
+      productId: input.productId,
+      variantId: input.variantId,
+      barcode: input.barcode ?? null,
+      customerName: input.customerName ?? null,
+      marketingConsent: input.marketingConsent ?? false,
+      productTitle: input.productTitle,
+      variantTitle: input.variantTitle,
+      productHandle: input.productHandle ?? null,
+      productImage: input.productImage ?? null,
+      price: input.price ?? null,
+      source: "manual",
+      status: input.status ?? "ACTIVE",
+    },
+  });
+}
+
 // 转化追踪：某邮箱下单了某变体 → 把对应订阅标记为 ORDERED
 export async function markOrdered(
   shop: string,
