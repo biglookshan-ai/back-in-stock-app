@@ -3,7 +3,11 @@
   "use strict";
 
   function currentVariantId() {
-    const p = new URLSearchParams(location.search).get("variant");
+    // 优先读商品表单里的 variant id（切换选项时主题会更新它，比 URL 可靠、跨主题通用）
+    var input = document.querySelector('form[action*="/cart/add"] [name="id"]');
+    if (input && input.value) return Number(input.value);
+    // 回退：URL ?variant=
+    var p = new URLSearchParams(location.search).get("variant");
     return p ? Number(p) : null;
   }
 
@@ -266,7 +270,13 @@
     }
   }
   window.addEventListener("popstate", onVariantMaybeChanged);
-  // 多数主题切换变体会更新 URL；轮询兜底（轻量）
-  setInterval(onVariantMaybeChanged, 600);
-  document.addEventListener("variant:change", init);
+  // 轮询兜底（轻量）—— 应对不触发事件、不改 URL 的主题
+  setInterval(onVariantMaybeChanged, 500);
+  // 选项切换（select / radio）→ 稍等主题更新表单后重新判定
+  document.addEventListener("change", function () {
+    setTimeout(onVariantMaybeChanged, 80);
+  });
+  // 常见主题的变体切换事件
+  document.addEventListener("variant:change", onVariantMaybeChanged);
+  document.addEventListener("variantChange", onVariantMaybeChanged);
 })();
