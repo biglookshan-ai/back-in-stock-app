@@ -47,6 +47,7 @@ model Subscription {
   productImage     String? // 产品图（邮件产品卡用）
   price            String? // 格式化价格快照，如 "£749.95"
   status           String    @default("ACTIVE") // ACTIVE(等待) | NOTIFIED(已发送) | ORDERED(已订购) | CANCELLED
+  tags             String    @default("") // 手动标签，逗号分隔
   source           String? // product_page | collection
   locale           String?
   createdAt        DateTime  @default(now()) // ★ 订阅时间
