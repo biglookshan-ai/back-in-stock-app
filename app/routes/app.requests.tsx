@@ -1,6 +1,6 @@
 // 请求列表：状态分页 + 搜索 + 取消 / 归档 / 恢复 / 删除
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
-import { useLoaderData, useSearchParams, useFetcher } from "@remix-run/react";
+import { useLoaderData, useSearchParams, useFetcher, Form } from "@remix-run/react";
 import {
   Page,
   Card,
@@ -70,6 +70,37 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       : {}),
   };
 
+  // ── CSV 导出（export=all 导出全部含归档；export=view 导出当前筛选）──
+  const exp = url.searchParams.get("export");
+  if (exp) {
+    const expWhere = exp === "all" ? { shop } : where;
+    const all = await prisma.subscription.findMany({
+      where: expWhere,
+      orderBy: { createdAt: "desc" },
+    });
+    const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const header =
+      "email,name,marketing,product,variant,barcode,status,source,price,subscribedAt,notifiedAt,orderedAt\n";
+    const body = all
+      .map((r) =>
+        [
+          r.email, r.customerName, r.marketingConsent ? "Yes" : "No",
+          r.productTitle, r.variantTitle, r.barcode, r.status, r.source, r.price,
+          r.createdAt.toISOString(),
+          r.notifiedAt?.toISOString() ?? "",
+          r.orderedAt?.toISOString() ?? "",
+        ].map(esc).join(","),
+      )
+      .join("\n");
+    const fname = exp === "all" ? "subscriptions_all" : `subscriptions_${status || "filtered"}`;
+    return new Response(header + body, {
+      headers: {
+        "Content-Type": "text/csv; charset=utf-8",
+        "Content-Disposition": `attachment; filename="${fname}.csv"`,
+      },
+    });
+  }
+
   const [rows, counts] = await Promise.all([
     prisma.subscription.findMany({ where, orderBy: { createdAt: "desc" }, take: 500 }),
     prisma.subscription.groupBy({ by: ["status"], where: { shop }, _count: { _all: true } }),
@@ -114,8 +145,18 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   return { ok: true };
 };
 
+type Row = {
+  id: string; email: string; customerName: string | null;
+  productTitle: string; variantTitle: string; status: string; createdAt: string;
+};
+
 export default function Requests() {
-  const { rows, counts, status, q } = useLoaderData<typeof loader>();
+  const { rows, counts, status, q } = useLoaderData<typeof loader>() as {
+    rows: Row[];
+    counts: Record<string, number>;
+    status: string;
+    q: string;
+  };
   const [params, setParams] = useSearchParams();
   const fetcher = useFetcher();
 
@@ -144,16 +185,30 @@ export default function Requests() {
           }))}
         >
           <Box padding="300">
-            <Box maxWidth="320px">
-              <TextField
-                label="搜索"
-                labelHidden
-                placeholder="邮箱 / 姓名 / 商品 / barcode"
-                value={q}
-                onChange={(v) => setParam("q", v)}
-                autoComplete="off"
-              />
-            </Box>
+            <InlineStack gap="300" align="space-between" blockAlign="center">
+              <Box maxWidth="320px" minWidth="220px">
+                <TextField
+                  label="搜索"
+                  labelHidden
+                  placeholder="邮箱 / 姓名 / 商品 / barcode"
+                  value={q}
+                  onChange={(v) => setParam("q", v)}
+                  autoComplete="off"
+                />
+              </Box>
+              <InlineStack gap="200">
+                <Form method="get" reloadDocument>
+                  {status && <input type="hidden" name="status" value={status} />}
+                  {q && <input type="hidden" name="q" value={q} />}
+                  <input type="hidden" name="export" value="view" />
+                  <Button submit>导出当前筛选</Button>
+                </Form>
+                <Form method="get" reloadDocument>
+                  <input type="hidden" name="export" value="all" />
+                  <Button submit variant="primary">导出全部</Button>
+                </Form>
+              </InlineStack>
+            </InlineStack>
           </Box>
 
           {rows.length === 0 ? (
