@@ -29,6 +29,7 @@ export default function App() {
         <Link to="/app/subscribers">订阅者</Link>
         <Link to="/app/requests">请求列表</Link>
         <Link to="/app/templates">邮件模板</Link>
+        <Link to="/app/custom-templates">自定义模板</Link>
         <Link to="/app/settings">设置</Link>
       </NavMenu>
       <Outlet />

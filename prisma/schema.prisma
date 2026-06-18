@@ -74,6 +74,18 @@ model EmailTemplate {
   @@unique([shop, type])
 }
 
+// ── 自定义邮件模板库（手动发送用，可存多个） ─────────────────────
+model CustomTemplate {
+  id        String   @id @default(cuid())
+  shop      String
+  name      String
+  subject   String
+  htmlBody  String
+  updatedAt DateTime @updatedAt
+
+  @@index([shop])
+}
+
 // ── 发信记录（统计来源，独立于邮件服务商） ─────────────────────────
 model EmailLog {
   id             String   @id @default(cuid())

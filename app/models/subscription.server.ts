@@ -225,6 +225,21 @@ export async function notifyVariantRestocked(shop: string, variantId: string) {
   return { notified };
 }
 
+// ── 手动群发（对一批订阅发自定义内容，记 EmailLog type=MANUAL）──────
+export async function sendManualEmail(
+  subs: Array<Parameters<typeof sendEmail>[0]>,
+  subject: string,
+  htmlBody: string,
+) {
+  let sent = 0;
+  for (const sub of subs) {
+    const res = await sendEmail(sub, "MANUAL", { subject, htmlBody });
+    if (res.ok) sent++;
+    await new Promise((r) => setTimeout(r, 150)); // 温和限速
+  }
+  return sent;
+}
+
 // ── 统一发信 + 写 EmailLog ────────────────────────────────────────
 async function sendEmail(
   sub: {
@@ -239,7 +254,7 @@ async function sendEmail(
     productImage: string | null;
     price: string | null;
   },
-  type: "CONFIRMATION" | "BACK_IN_STOCK",
+  type: string, // CONFIRMATION | BACK_IN_STOCK | MANUAL
   tpl: { subject: string; htmlBody: string },
 ) {
   const settings = await getSettings(sub.shop);

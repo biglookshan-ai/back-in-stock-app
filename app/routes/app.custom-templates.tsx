@@ -1,0 +1,155 @@
+// 自定义邮件模板库：手动发送邮件时可选用的可复用模板（新建/编辑/删除 + 实时预览）
+import { useState, useEffect } from "react";
+import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
+import { useLoaderData, useFetcher } from "@remix-run/react";
+import {
+  Page, Card, TextField, Button, BlockStack, InlineStack, Text, Box,
+  InlineGrid, Banner, ResourceList, ResourceItem,
+} from "@shopify/polaris";
+import { TitleBar, useAppBridge } from "@shopify/app-bridge-react";
+import { authenticate } from "../shopify.server";
+import prisma from "../db.server";
+import { getSettings } from "../models/subscription.server";
+
+export const loader = async ({ request }: LoaderFunctionArgs) => {
+  const { session } = await authenticate.admin(request);
+  const [templates, settings] = await Promise.all([
+    prisma.customTemplate.findMany({ where: { shop: session.shop }, orderBy: { updatedAt: "desc" } }),
+    getSettings(session.shop),
+  ]);
+  return {
+    templates: templates.map((t) => ({ id: t.id, name: t.name, subject: t.subject, htmlBody: t.htmlBody })),
+    brand: {
+      shop_name: settings.fromName, brand_logo: settings.logoUrl, brand_color: settings.brandColor,
+      website_url: settings.websiteUrl, company_address: settings.companyAddress, support_email: settings.supportEmail,
+    },
+  };
+};
+
+export const action = async ({ request }: ActionFunctionArgs) => {
+  const { session } = await authenticate.admin(request);
+  const fd = await request.formData();
+  const intent = String(fd.get("intent"));
+  if (intent === "delete") {
+    await prisma.customTemplate.deleteMany({ where: { id: String(fd.get("id")), shop: session.shop } });
+    return { ok: true, message: "已删除" };
+  }
+  const name = String(fd.get("name") ?? "").trim() || "未命名模板";
+  const subject = String(fd.get("subject") ?? "");
+  const htmlBody = String(fd.get("htmlBody") ?? "");
+  const id = String(fd.get("id") ?? "");
+  if (id) {
+    await prisma.customTemplate.updateMany({ where: { id, shop: session.shop }, data: { name, subject, htmlBody } });
+    return { ok: true, message: "已保存", savedId: id };
+  }
+  const created = await prisma.customTemplate.create({ data: { shop: session.shop, name, subject, htmlBody } });
+  return { ok: true, message: "已创建", savedId: created.id };
+};
+
+const SAMPLE = {
+  customer_name: "Alex", customer_email: "customer@example.com",
+  product_title: "DZOFILM Arcana 35mm", variant_title: "EF Mount",
+  product_image: "https://placehold.co/240x240/1a1a1a/ffffff?text=Product",
+  product_price: "£2,629.95", product_url: "#", unsubscribe_url: "#",
+};
+function renderClient(tpl: string, vars: Record<string, string>) {
+  let out = tpl.replace(/\{\{#if\s+(\w+)\}\}([\s\S]*?)\{\{\/if\}\}/g, (_m, k, inner) => (vars[k] ? inner : ""));
+  out = out.replace(/\{\{#unless\s+(\w+)\}\}([\s\S]*?)\{\{\/unless\}\}/g, (_m, k, inner) => (vars[k] ? "" : inner));
+  return out.replace(/\{\{\s*(\w+)\s*\}\}/g, (_m, k) => (k in vars ? String(vars[k]) : ""));
+}
+
+const DEFAULT_BODY = `<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;padding:24px">
+  {{#if brand_logo}}<img src="{{brand_logo}}" alt="{{shop_name}}" height="32" style="height:32px"><br><br>{{/if}}
+  <h2 style="color:{{brand_color}}">Hi {{customer_name}},</h2>
+  <p>关于 <strong>{{product_title}}</strong>（{{variant_title}}）—— 在这里写你要手动通知的内容，比如预计 3 周到货，是否仍需要？</p>
+  <p><a href="{{product_url}}" style="display:inline-block;background:{{brand_color}};color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none">查看商品</a></p>
+  <p style="color:#888;font-size:12px">— {{shop_name}}</p>
+  <p style="color:#bbb;font-size:11px"><a href="{{unsubscribe_url}}">Unsubscribe</a></p>
+</div>`;
+
+type Tpl = { id: string; name: string; subject: string; htmlBody: string };
+
+export default function CustomTemplates() {
+  const { templates, brand } = useLoaderData<typeof loader>();
+  const fetcher = useFetcher<typeof action>();
+  const shopify = useAppBridge();
+
+  const [sel, setSel] = useState<Tpl | null>(null);
+  const isNew = sel !== null && !sel.id;
+
+  useEffect(() => {
+    if (fetcher.state !== "idle" || !fetcher.data) return;
+    if (fetcher.data.message) shopify.toast.show(fetcher.data.message);
+    const savedId = (fetcher.data as any).savedId;
+    if (savedId && sel) setSel({ ...sel, id: savedId });
+    if ((fetcher.data as any).message === "已删除") setSel(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fetcher.state, fetcher.data]);
+
+  const newTpl = () => setSel({ id: "", name: "", subject: "", htmlBody: DEFAULT_BODY });
+  const save = () =>
+    sel && fetcher.submit({ intent: "save", id: sel.id, name: sel.name, subject: sel.subject, htmlBody: sel.htmlBody }, { method: "POST" });
+  const del = () => sel?.id && fetcher.submit({ intent: "delete", id: sel.id }, { method: "POST" });
+
+  const previewVars = { ...SAMPLE, ...brand } as Record<string, string>;
+
+  return (
+    <Page>
+      <TitleBar title="自定义邮件模板" />
+      <Banner tone="info">
+        <p>这些模板用于<b>手动发送邮件</b>(在「请求列表」筛选客人后群发)。变量同其它模板:<code>{"{{customer_name}} {{product_title}} {{variant_title}} {{product_url}} {{brand_color}}"}</code> 等。</p>
+      </Banner>
+      <Box paddingBlockStart="400">
+        <InlineGrid columns={{ xs: 1, md: ["oneThird", "twoThirds"] }} gap="400">
+          {/* 列表 */}
+          <Card>
+            <BlockStack gap="300">
+              <InlineStack align="space-between" blockAlign="center">
+                <Text as="h3" variant="headingMd">模板</Text>
+                <Button onClick={newTpl} variant="primary">新建</Button>
+              </InlineStack>
+              {templates.length === 0 ? (
+                <Text as="p" tone="subdued">还没有模板,点「新建」创建一个。</Text>
+              ) : (
+                <ResourceList
+                  items={templates}
+                  renderItem={(t: Tpl) => (
+                    <ResourceItem id={t.id} onClick={() => setSel(t)}>
+                      <Text as="span" variant="bodyMd" fontWeight="medium">{t.name}</Text>
+                      <br />
+                      <Text as="span" variant="bodySm" tone="subdued">{t.subject}</Text>
+                    </ResourceItem>
+                  )}
+                />
+              )}
+            </BlockStack>
+          </Card>
+
+          {/* 编辑 + 预览 */}
+          {sel ? (
+            <Card>
+              <BlockStack gap="400">
+                <Text as="h3" variant="headingMd">{isNew ? "新建模板" : "编辑模板"}</Text>
+                <TextField label="模板名称" value={sel.name} onChange={(v) => setSel({ ...sel, name: v })} autoComplete="off" />
+                <TextField label="邮件主题" value={sel.subject} onChange={(v) => setSel({ ...sel, subject: v })} autoComplete="off" />
+                <TextField label="正文(HTML)" value={sel.htmlBody} onChange={(v) => setSel({ ...sel, htmlBody: v })} multiline={10} autoComplete="off" />
+                <Box borderRadius="200" borderWidth="025" borderColor="border">
+                  <iframe title="preview" srcDoc={renderClient(sel.htmlBody, previewVars)}
+                    style={{ width: "100%", height: 360, border: "none", display: "block" }} />
+                </Box>
+                <InlineStack gap="300">
+                  <Button variant="primary" loading={fetcher.state !== "idle"} onClick={save}>保存</Button>
+                  {!isNew && <Button tone="critical" onClick={del}>删除</Button>}
+                </InlineStack>
+              </BlockStack>
+            </Card>
+          ) : (
+            <Card>
+              <Box padding="400"><Text as="p" tone="subdued">左侧选一个模板编辑,或点「新建」。</Text></Box>
+            </Card>
+          )}
+        </InlineGrid>
+      </Box>
+    </Page>
+  );
+}

@@ -1,5 +1,5 @@
 // 请求列表：状态分页 + 搜索 + Newsletter/标签/日期 筛选 + 取消/归档/删除 + 标签编辑 + CSV 导出
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { useLoaderData, useSearchParams, useFetcher, Form } from "@remix-run/react";
 import {
@@ -12,14 +12,44 @@ import {
   Select,
   Box,
   Button,
+  BlockStack,
   InlineStack,
   Text,
   Modal,
   EmptyState,
 } from "@shopify/polaris";
-import { TitleBar } from "@shopify/app-bridge-react";
+import { TitleBar, useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
+import { sendManualEmail } from "../models/subscription.server";
+
+// 把 URL/表单的筛选条件构造成 Prisma where（loader 与群发 action 共用）
+function buildWhere(shop: string, sp: URLSearchParams): any {
+  const status = sp.get("status") ?? "";
+  const q = sp.get("q")?.trim() ?? "";
+  const marketing = sp.get("marketing") ?? "";
+  const tag = sp.get("tag")?.trim() ?? "";
+  const from = sp.get("from") ?? "";
+  const to = sp.get("to") ?? "";
+  const where: any = {
+    shop,
+    ...(status === "" ? { status: { not: "ARCHIVED" } } : { status }),
+    ...(marketing === "yes" ? { marketingConsent: true } : marketing === "no" ? { marketingConsent: false } : {}),
+    ...(tag ? { tags: { contains: tag } } : {}),
+    ...(q ? { OR: [
+      { email: { contains: q } },
+      { productTitle: { contains: q } },
+      { customerName: { contains: q } },
+      { barcode: { contains: q } },
+    ] } : {}),
+  };
+  if (from || to) {
+    where.createdAt = {};
+    if (from) where.createdAt.gte = new Date(from);
+    if (to) where.createdAt.lte = new Date(to + "T23:59:59.999Z");
+  }
+  return where;
+}
 
 const STATUS_TABS = [
   { id: "", label: "全部" },
@@ -43,32 +73,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const url = new URL(request.url);
   const status = url.searchParams.get("status") ?? "";
   const q = url.searchParams.get("q")?.trim() ?? "";
-  const marketing = url.searchParams.get("marketing") ?? ""; // yes | no | ""
-  const tag = url.searchParams.get("tag")?.trim() ?? "";
-  const from = url.searchParams.get("from") ?? "";
-  const to = url.searchParams.get("to") ?? "";
-
-  const statusWhere = status === "" ? { status: { not: "ARCHIVED" } } : { status };
-
-  const where: any = {
-    shop,
-    ...statusWhere,
-    ...(marketing === "yes" ? { marketingConsent: true } : marketing === "no" ? { marketingConsent: false } : {}),
-    ...(tag ? { tags: { contains: tag } } : {}),
-    ...(q
-      ? { OR: [
-          { email: { contains: q } },
-          { productTitle: { contains: q } },
-          { customerName: { contains: q } },
-          { barcode: { contains: q } },
-        ] }
-      : {}),
-  };
-  if (from || to) {
-    where.createdAt = {};
-    if (from) where.createdAt.gte = new Date(from);
-    if (to) where.createdAt.lte = new Date(to + "T23:59:59.999Z");
-  }
+  const where = buildWhere(shop, url.searchParams);
 
   // ── CSV 导出 ──
   const exp = url.searchParams.get("export");
@@ -90,9 +95,15 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     });
   }
 
-  const [rows, counts] = await Promise.all([
+  const [rows, counts, filteredCount, customTemplates] = await Promise.all([
     prisma.subscription.findMany({ where, orderBy: { createdAt: "desc" }, take: 500 }),
     prisma.subscription.groupBy({ by: ["status"], where: { shop }, _count: { _all: true } }),
+    prisma.subscription.count({ where }),
+    prisma.customTemplate.findMany({
+      where: { shop },
+      orderBy: { updatedAt: "desc" },
+      select: { id: true, name: true, subject: true, htmlBody: true },
+    }),
   ]);
 
   const countMap: Record<string, number> = {};
@@ -110,7 +121,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       status: r.status, tags: r.tags, marketing: r.marketingConsent,
       createdAt: r.createdAt.toISOString(),
     })),
-    counts: countMap, status, q,
+    counts: countMap, status, q, filteredCount, customTemplates,
   };
 };
 
@@ -118,6 +129,22 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const { session } = await authenticate.admin(request);
   const fd = await request.formData();
   const intent = String(fd.get("intent"));
+
+  // 群发：对当前筛选结果发自定义邮件
+  if (intent === "sendmail") {
+    const subject = String(fd.get("subject") ?? "").trim();
+    const htmlBody = String(fd.get("htmlBody") ?? "").trim();
+    if (!subject || !htmlBody) return { ok: false, message: "主题和正文不能为空" };
+    const sp = new URLSearchParams();
+    ["status", "q", "marketing", "tag", "from", "to"].forEach((k) => {
+      const v = fd.get(k);
+      if (v) sp.set(k, String(v));
+    });
+    const subs = await prisma.subscription.findMany({ where: buildWhere(session.shop, sp) });
+    const sent = await sendManualEmail(subs, subject, htmlBody);
+    return { ok: true, message: `已发送 ${sent} 封` };
+  }
+
   const id = String(fd.get("id"));
   const where = { id, shop: session.shop };
 
@@ -139,18 +166,51 @@ type Row = {
   tags: string; marketing: boolean; createdAt: string;
 };
 
+type CustomTpl = { id: string; name: string; subject: string; htmlBody: string };
+
 export default function Requests() {
-  const { rows, counts, status, q } = useLoaderData<typeof loader>() as {
-    rows: Row[]; counts: Record<string, number>; status: string; q: string;
-  };
+  const { rows, counts, status, q, filteredCount, customTemplates } =
+    useLoaderData<typeof loader>() as {
+      rows: Row[]; counts: Record<string, number>; status: string; q: string;
+      filteredCount: number; customTemplates: CustomTpl[];
+    };
   const [params, setParams] = useSearchParams();
-  const fetcher = useFetcher();
+  const fetcher = useFetcher<{ ok: boolean; message?: string }>();
+  const shopify = useAppBridge();
 
   const [tagEditId, setTagEditId] = useState<string | null>(null);
   const [tagDraft, setTagDraft] = useState("");
 
+  // 群发邮件 modal
+  const [sendOpen, setSendOpen] = useState(false);
+  const [sendTplId, setSendTplId] = useState("");
+  const [sendSubject, setSendSubject] = useState("");
+  const [sendBody, setSendBody] = useState("");
+
+  useEffect(() => {
+    if (fetcher.state === "idle" && fetcher.data?.message) {
+      shopify.toast.show(fetcher.data.message);
+      if (fetcher.data.ok && sendOpen) setSendOpen(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fetcher.state, fetcher.data]);
+
   const selectedTab = Math.max(0, STATUS_TABS.findIndex((t) => t.id === status));
   const get = (k: string) => params.get(k) ?? "";
+
+  const pickSendTpl = (id: string) => {
+    setSendTplId(id);
+    const t = customTemplates.find((x) => x.id === id);
+    if (t) { setSendSubject(t.subject); setSendBody(t.htmlBody); }
+  };
+  const doSend = () =>
+    fetcher.submit(
+      {
+        intent: "sendmail", subject: sendSubject, htmlBody: sendBody,
+        status, q, marketing: get("marketing"), tag: get("tag"), from: get("from"), to: get("to"),
+      },
+      { method: "POST" },
+    );
 
   const setParam = (key: string, value: string) => {
     const next = new URLSearchParams(params);
@@ -185,6 +245,7 @@ export default function Requests() {
                   value={q} onChange={(v) => setParam("q", v)} autoComplete="off" />
               </Box>
               <InlineStack gap="200">
+                <Button onClick={() => setSendOpen(true)}>发送邮件</Button>
                 <Form method="get" reloadDocument>
                   {status && <input type="hidden" name="status" value={status} />}
                   {filterFields}
@@ -299,6 +360,43 @@ export default function Requests() {
             autoComplete="off"
             helpText="多个标签用逗号分隔。"
           />
+        </Modal.Section>
+      </Modal>
+
+      {/* 群发邮件：发给当前筛选结果 */}
+      <Modal
+        open={sendOpen}
+        onClose={() => setSendOpen(false)}
+        title={`发送邮件（当前筛选 ${filteredCount} 人）`}
+        primaryAction={{
+          content: `发送给 ${filteredCount} 人`,
+          onAction: doSend,
+          loading: fetcher.state !== "idle",
+          disabled: !sendSubject || !sendBody || filteredCount === 0,
+        }}
+        secondaryActions={[{ content: "取消", onAction: () => setSendOpen(false) }]}
+      >
+        <Modal.Section>
+          <BlockStack gap="300">
+            <Text as="p" tone="subdued" variant="bodySm">
+              发送给「当前筛选」的所有客人。先用上方的搜索/Newsletter/标签/状态筛选好对象,再发送。
+            </Text>
+            <Select
+              label="选择模板（可选）"
+              options={[
+                { label: "— 空白 / 自己写 —", value: "" },
+                ...customTemplates.map((t) => ({ label: t.name, value: t.id })),
+              ]}
+              value={sendTplId}
+              onChange={pickSendTpl}
+              helpText="模板在「自定义邮件模板」页管理。选了可继续编辑。"
+            />
+            <TextField label="主题" value={sendSubject} onChange={setSendSubject} autoComplete="off" />
+            <TextField label="正文（HTML，支持变量）" value={sendBody} onChange={setSendBody} multiline={8} autoComplete="off" />
+            <Text as="p" tone="subdued" variant="bodySm">
+              变量:{"{{customer_name}} {{product_title}} {{variant_title}} {{product_url}} {{unsubscribe_url}}"} 等。每人会按自己订阅的商品渲染。
+            </Text>
+          </BlockStack>
         </Modal.Section>
       </Modal>
     </Page>
