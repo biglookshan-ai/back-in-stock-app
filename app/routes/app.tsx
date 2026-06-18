@@ -25,6 +25,7 @@ export default function App() {
           总览
         </Link>
         <Link to="/app/products">产品订阅</Link>
+        <Link to="/app/variants">变体清单</Link>
         <Link to="/app/subscribers">订阅者</Link>
         <Link to="/app/requests">请求列表</Link>
         <Link to="/app/templates">邮件模板</Link>
