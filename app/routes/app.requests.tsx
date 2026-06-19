@@ -351,7 +351,7 @@ export default function Requests() {
 
   return (
     <Page
-      backAction={{ content: "返回", onAction: () => navigate(-1) }}
+      backAction={{ content: "返回", onAction: () => navigate("/app") }}
       primaryAction={{ content: "手动添加订阅", url: "/app/requests/new" }}
       secondaryActions={[
         {

@@ -121,7 +121,7 @@ export default function Subscribers() {
     fetcher.submit({ mode }, { method: "POST" });
 
   return (
-    <Page backAction={{ content: "返回", onAction: () => navigate(-1) }}>
+    <Page backAction={{ content: "返回", onAction: () => navigate("/app") }}>
       <TitleBar title="订阅者列表" />
       <Card padding="0">
         <Box padding="400">

@@ -99,7 +99,7 @@ export default function EmailShell() {
   );
 
   return (
-    <Page backAction={{ content: "返回", onAction: () => navigate(-1) }}>
+    <Page backAction={{ content: "返回", onAction: () => navigate("/app") }}>
       <TitleBar title="邮件页眉页脚" />
       <BlockStack gap="400">
         <Banner tone="info">
