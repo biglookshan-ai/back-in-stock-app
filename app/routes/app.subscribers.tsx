@@ -1,6 +1,6 @@
 // 订阅者列表：按邮箱聚合 —— 姓名 / 营销同意 / 首次请求 / 总请求数 + CSV 导出
 import type { LoaderFunctionArgs } from "@remix-run/node";
-import { useLoaderData, Form, Link } from "@remix-run/react";
+import { useLoaderData, Link } from "@remix-run/react";
 import {
   Page,
   Card,
@@ -87,6 +87,16 @@ export default function Subscribers() {
     totalCount: number;
   };
 
+  const exportCsv = async (mode: "list" | "details") => {
+    const resp = await fetch(`/app/subscribers?export=${mode}`);
+    const text = await resp.text();
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([text], { type: "text/csv;charset=utf-8" }));
+    a.download = mode === "list" ? "subscribers.csv" : "subscriptions_details.csv";
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(a.href);
+  };
+
   return (
     <Page>
       <TitleBar title="订阅者列表" />
@@ -97,14 +107,8 @@ export default function Subscribers() {
               显示 {subscribers.length} 共 {totalCount} 位订阅者
             </Text>
             <InlineStack gap="200">
-              <Form method="get" reloadDocument>
-                <input type="hidden" name="export" value="list" />
-                <Button submit>导出列表</Button>
-              </Form>
-              <Form method="get" reloadDocument>
-                <input type="hidden" name="export" value="details" />
-                <Button submit variant="primary">导出详情</Button>
-              </Form>
+              <Button onClick={() => exportCsv("list")}>导出列表</Button>
+              <Button onClick={() => exportCsv("details")} variant="primary">导出详情</Button>
             </InlineStack>
           </InlineStack>
         </Box>

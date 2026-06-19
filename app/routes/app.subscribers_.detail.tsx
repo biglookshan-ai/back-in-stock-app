@@ -7,6 +7,8 @@ import {
   IndexTable,
   Badge,
   Text,
+  Link as PolarisLink,
+  InlineStack,
   EmptyState,
 } from "@shopify/polaris";
 import { TitleBar } from "@shopify/app-bridge-react";
@@ -28,24 +30,32 @@ const LABEL: Record<string, string> = {
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
+  const shop = session.shop;
+  const storeHandle = shop.replace(".myshopify.com", "");
   const email = new URL(request.url).searchParams.get("email") ?? "";
 
   const subs = await prisma.subscription.findMany({
-    where: { shop: session.shop, email },
+    where: { shop, email },
     orderBy: { createdAt: "desc" },
   });
 
   return {
     email,
     name: subs.find((s) => s.customerName)?.customerName ?? null,
-    rows: subs.map((r) => ({
-      id: r.id,
-      productTitle: r.productTitle,
-      variantTitle: r.variantTitle,
-      barcode: r.barcode,
-      status: r.status,
-      createdAt: r.createdAt.toISOString(),
-    })),
+    rows: subs.map((r) => {
+      const vid = r.variantId.split("/").pop() ?? "";
+      const pid = r.productId.split("/").pop() ?? "";
+      return {
+        id: r.id,
+        productTitle: r.productTitle,
+        variantTitle: r.variantTitle,
+        barcode: r.barcode,
+        status: r.status,
+        createdAt: r.createdAt.toISOString(),
+        storefrontUrl: r.productHandle ? `https://${shop}/products/${r.productHandle}?variant=${vid}` : `https://${shop}`,
+        adminUrl: `https://admin.shopify.com/store/${storeHandle}/products/${pid}/variants/${vid}`,
+      };
+    }),
   };
 };
 
@@ -74,6 +84,7 @@ export default function SubscriberDetail() {
               { title: "Barcode" },
               { title: "状态" },
               { title: "订阅时间" },
+              { title: "链接" },
             ]}
           >
             {rows.map((r, i) => (
@@ -87,6 +98,12 @@ export default function SubscriberDetail() {
                   <Badge tone={TONE[r.status] ?? "info"}>{LABEL[r.status] ?? r.status}</Badge>
                 </IndexTable.Cell>
                 <IndexTable.Cell>{new Date(r.createdAt).toLocaleString()}</IndexTable.Cell>
+                <IndexTable.Cell>
+                  <InlineStack gap="300">
+                    <PolarisLink url={r.storefrontUrl} target="_blank">前台 ↗</PolarisLink>
+                    <PolarisLink url={r.adminUrl} target="_blank">后台 ↗</PolarisLink>
+                  </InlineStack>
+                </IndexTable.Cell>
               </IndexTable.Row>
             ))}
           </IndexTable>

@@ -1,7 +1,7 @@
 // 请求列表：状态分页 + 搜索 + Newsletter/标签/日期 筛选 + 取消/归档/删除 + 标签编辑 + CSV 导出
 import { useState, useEffect } from "react";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
-import { useLoaderData, useSearchParams, useFetcher, Form } from "@remix-run/react";
+import { useLoaderData, useSearchParams, useFetcher } from "@remix-run/react";
 import {
   Page,
   Card,
@@ -213,6 +213,31 @@ export default function Requests() {
       { method: "POST" },
     );
 
+  // 搜索框：本地状态 + 防抖（避免每次按键都跳转、丢焦点）
+  const [searchInput, setSearchInput] = useState(q);
+  useEffect(() => {
+    const t = setTimeout(() => { if (searchInput !== q) setParam("q", searchInput); }, 400);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchInput]);
+
+  // 导出 CSV：用带登录态的 fetch 取数据，浏览器直接下载（不跳登录页、不占邮件额度）
+  const exportCsv = async (mode: "view" | "all") => {
+    const sp = new URLSearchParams();
+    if (mode === "view") {
+      if (status) sp.set("status", status);
+      (["q", "marketing", "tag", "from", "to"] as const).forEach((k) => { if (get(k)) sp.set(k, get(k)); });
+    }
+    sp.set("export", mode);
+    const resp = await fetch(`/app/requests?${sp.toString()}`);
+    const text = await resp.text();
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([text], { type: "text/csv;charset=utf-8" }));
+    a.download = mode === "all" ? "subscriptions_all.csv" : `subscriptions_${status || "filtered"}.csv`;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(a.href);
+  };
+
   const setParam = (key: string, value: string) => {
     const next = new URLSearchParams(params);
     if (value) next.set(key, value);
@@ -225,10 +250,6 @@ export default function Requests() {
 
   const openTag = (r: Row) => { setTagEditId(r.id); setTagDraft(r.tags); };
   const saveTag = () => { if (tagEditId) act("tag", tagEditId, { tags: tagDraft }); setTagEditId(null); };
-
-  // 导出表单要带上的当前筛选
-  const filterFields = (["q", "marketing", "tag", "from", "to"] as const)
-    .map((k) => (get(k) ? <input key={k} type="hidden" name={k} value={get(k)} /> : null));
 
   return (
     <Page primaryAction={{ content: "手动添加订阅", url: "/app/requests/new" }}>
@@ -243,19 +264,11 @@ export default function Requests() {
             <InlineStack gap="300" align="space-between" blockAlign="center">
               <Box maxWidth="280px" minWidth="200px">
                 <TextField label="搜索" labelHidden placeholder="邮箱 / 姓名 / 商品 / barcode"
-                  value={q} onChange={(v) => setParam("q", v)} autoComplete="off" />
+                  value={searchInput} onChange={setSearchInput} clearButton onClearButtonClick={() => setSearchInput("")} autoComplete="off" />
               </Box>
               <InlineStack gap="200">
-                <Form method="get" reloadDocument>
-                  {status && <input type="hidden" name="status" value={status} />}
-                  {filterFields}
-                  <input type="hidden" name="export" value="view" />
-                  <Button submit>导出当前筛选</Button>
-                </Form>
-                <Form method="get" reloadDocument>
-                  <input type="hidden" name="export" value="all" />
-                  <Button submit variant="primary">导出全部</Button>
-                </Form>
+                <Button onClick={() => exportCsv("view")}>导出当前筛选</Button>
+                <Button onClick={() => exportCsv("all")} variant="primary">导出全部</Button>
               </InlineStack>
             </InlineStack>
 
