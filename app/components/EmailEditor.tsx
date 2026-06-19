@@ -37,6 +37,29 @@ function hydrate(root: HTMLElement) {
     (el.querySelector(".bis-card-real") as HTMLElement).innerHTML = real;
     (el.querySelector(".bis-card-label") as HTMLElement).textContent = label;
   });
+  padCards(root);
+}
+
+const isCardNode = (n: Node | null) =>
+  !!n && n.nodeType === 1 && (n as HTMLElement).classList?.contains("bis-card");
+
+function makeLine() {
+  const p = document.createElement("p");
+  p.appendChild(document.createElement("br"));
+  return p;
+}
+
+// 在每张小卡片前后补一个可编辑空行：保证卡片相邻 / 在首尾时光标仍能落脚、能插字
+function padCards(root: HTMLElement) {
+  root.querySelectorAll<HTMLElement>(".bis-card").forEach((card) => {
+    if (!card.parentNode) return;
+    if (!card.previousSibling || isCardNode(card.previousSibling)) {
+      card.parentNode.insertBefore(makeLine(), card);
+    }
+    if (!card.nextSibling || isCardNode(card.nextSibling)) {
+      card.parentNode.insertBefore(makeLine(), card.nextSibling);
+    }
+  });
 }
 
 // 从编辑器 DOM 还原出「干净值」：小卡片 → data-bis-card 包裹的真实卡片 HTML
