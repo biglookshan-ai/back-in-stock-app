@@ -286,15 +286,15 @@ export default function Requests() {
       { method: "POST" },
     );
 
-  // 选产品 → 生成产品卡 HTML 数组（编辑器在光标处插入）
-  const pickProductCards = async (): Promise<string[]> => {
+  // 选产品 → 生成产品卡（编辑器显示成小卡片，含展示用 label/thumb）
+  const pickProductCards = async () => {
     const picked = await shopify.resourcePicker({ type: "product", multiple: true });
     if (!picked || picked.length === 0) return [];
     return (picked as any[]).map((p) => {
       const img = p.images?.[0]?.originalSrc || p.images?.[0]?.url || p.featuredImage?.url || "";
       const price = p.variants?.[0]?.price ? String(p.variants[0].price) : "";
       const url = p.handle ? `https://${shop}/products/${p.handle}` : "#";
-      return productCard({ title: p.title, image: img, price, url });
+      return { html: productCard({ title: p.title, image: img, price, url }), label: p.title as string, thumb: img };
     });
   };
 
@@ -530,7 +530,7 @@ export default function Requests() {
                 helpText="模板在「自定义邮件模板」页管理。选了可继续编辑。"
               />
               <TextField label="主题" value={sendSubject} onChange={setSendSubject} autoComplete="off" />
-              <EmailEditor value={sendBody} onChange={setSendBody} onPickProducts={pickProductCards} customerCardHtml={CUSTOMER_CARD} />
+              <EmailEditor value={sendBody} onChange={setSendBody} onPickProducts={pickProductCards} customerCard={{ html: CUSTOMER_CARD, label: "客人订阅的产品（每人各自显示）" }} />
               <Text as="p" tone="subdued" variant="bodySm">
                 变量:{"{{customer_name}} {{product_title}} {{product_image}} {{product_price}} {{product_url}} {{unsubscribe_url}}"}（每人按自己订阅的商品渲染）。
               </Text>
