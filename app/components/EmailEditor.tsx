@@ -1,8 +1,10 @@
 // 邮件编辑器：富文本(所见即所得) / 代码 双模式。
-// 插入的产品卡在富文本里显示成「紧凑小卡片(带✕删除)」，真实卡片 HTML 存在
-// data-bis-card 包裹里，导出/发送时自动展开成完整邮件 HTML。
+// - 插入的产品卡在富文本里显示成「紧凑小卡片(带✕删除)」，真实卡片 HTML 存在
+//   data-bis-card 包裹里，导出/发送时自动展开成完整邮件 HTML。
+// - 卡片前后自动补可编辑空行，并把光标移到卡片下一行，保证随处可插字。
+// - 「插入变量」下拉：客人/产品相关变量一键插入；选区保存/恢复，精准落点。
 import { useEffect, useRef, useState } from "react";
-import { Button, ButtonGroup, InlineStack } from "@shopify/polaris";
+import { Button, ButtonGroup, InlineStack, Popover, ActionList } from "@shopify/polaris";
 
 export type PickedCard = { html: string; label: string; thumb?: string };
 
@@ -10,16 +12,37 @@ const escapeAttr = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
 // 卡片在「值」里的存储形态：一个带 data-bis-card 的 div 包裹真实卡片 HTML。
-// 这个 div 在最终邮件里是透明包裹，不影响渲染。
 function cardWrapper(realHtml: string, label: string, thumb?: string) {
   return `<div data-bis-card data-label="${escapeAttr(label)}"${thumb ? ` data-thumb="${escapeAttr(thumb)}"` : ""}>${realHtml}</div>`;
+}
+
+const isCardNode = (n: Node | null) =>
+  !!n && n.nodeType === 1 && (n as HTMLElement).classList?.contains("bis-card");
+
+function makeLine() {
+  const p = document.createElement("p");
+  p.appendChild(document.createElement("br"));
+  return p;
+}
+
+// 在每张小卡片前后补一个可编辑空行：保证卡片相邻 / 在首尾时光标仍能落脚
+function padCards(root: HTMLElement) {
+  root.querySelectorAll<HTMLElement>(".bis-card").forEach((card) => {
+    if (!card.parentNode) return;
+    if (!card.previousSibling || isCardNode(card.previousSibling)) {
+      card.parentNode.insertBefore(makeLine(), card);
+    }
+    if (!card.nextSibling || isCardNode(card.nextSibling)) {
+      card.parentNode.insertBefore(makeLine(), card.nextSibling);
+    }
+  });
 }
 
 // 把编辑器 DOM 里的 [data-bis-card] 变成紧凑小卡片(只用于显示，真实 HTML 仍保留)
 function hydrate(root: HTMLElement) {
   root.querySelectorAll<HTMLElement>("[data-bis-card]").forEach((el) => {
     if (el.dataset.hydrated) return;
-    const real = el.innerHTML; // 真实卡片 HTML
+    const real = el.innerHTML;
     const label = el.getAttribute("data-label") || "产品卡";
     const thumb = el.getAttribute("data-thumb") || "";
     el.dataset.hydrated = "1";
@@ -40,28 +63,6 @@ function hydrate(root: HTMLElement) {
   padCards(root);
 }
 
-const isCardNode = (n: Node | null) =>
-  !!n && n.nodeType === 1 && (n as HTMLElement).classList?.contains("bis-card");
-
-function makeLine() {
-  const p = document.createElement("p");
-  p.appendChild(document.createElement("br"));
-  return p;
-}
-
-// 在每张小卡片前后补一个可编辑空行：保证卡片相邻 / 在首尾时光标仍能落脚、能插字
-function padCards(root: HTMLElement) {
-  root.querySelectorAll<HTMLElement>(".bis-card").forEach((card) => {
-    if (!card.parentNode) return;
-    if (!card.previousSibling || isCardNode(card.previousSibling)) {
-      card.parentNode.insertBefore(makeLine(), card);
-    }
-    if (!card.nextSibling || isCardNode(card.nextSibling)) {
-      card.parentNode.insertBefore(makeLine(), card.nextSibling);
-    }
-  });
-}
-
 // 从编辑器 DOM 还原出「干净值」：小卡片 → data-bis-card 包裹的真实卡片 HTML
 function serialize(root: HTMLElement): string {
   const clone = root.cloneNode(true) as HTMLElement;
@@ -79,6 +80,22 @@ function serialize(root: HTMLElement): string {
   return clone.innerHTML;
 }
 
+// 可插入的变量（客人 / 产品 / 其他）
+const VAR_GROUPS: { title: string; items: [string, string][] }[] = [
+  { title: "客人相关", items: [["客人名称", "{{customer_name}}"], ["客人邮箱", "{{customer_email}}"]] },
+  {
+    title: "产品相关",
+    items: [
+      ["产品名称", "{{product_title}}"],
+      ["变体", "{{variant_title}}"],
+      ["价格", "{{product_price}}"],
+      ["产品链接", "{{product_url}}"],
+      ["产品图片", "{{product_image}}"],
+    ],
+  },
+  { title: "其他", items: [["店铺名称", "{{shop_name}}"], ["退订链接", "{{unsubscribe_url}}"]] },
+];
+
 export function EmailEditor({
   value,
   onChange,
@@ -87,17 +104,16 @@ export function EmailEditor({
 }: {
   value: string;
   onChange: (html: string) => void;
-  // 选产品 → 返回要插入的卡片（含展示用 label/thumb）
   onPickProducts: () => Promise<PickedCard[]>;
-  // 若提供：显示「插入客人产品卡」按钮（这张卡每位收件人各自渲染自己的产品）
   customerCard?: { html: string; label: string };
 }) {
   const [mode, setMode] = useState<"rich" | "code">("rich");
+  const [varOpen, setVarOpen] = useState(false);
   const richRef = useRef<HTMLDivElement>(null);
   const codeRef = useRef<HTMLTextAreaElement>(null);
-  const internal = useRef(false); // 标记本次 value 变化来自编辑器内部，避免重置光标
+  const internal = useRef(false); // 标记 value 变化来自内部，避免重置光标
+  const savedRange = useRef<Range | null>(null); // 富文本失焦前的选区
 
-  // 外部 value 变化（选模板/切模式）时灌入富文本并重建小卡片；内部输入则跳过
   useEffect(() => {
     if (mode !== "rich" || !richRef.current) return;
     if (internal.current) { internal.current = false; return; }
@@ -111,9 +127,35 @@ export function EmailEditor({
     internal.current = true;
     if (richRef.current) onChange(serialize(richRef.current));
   };
+
+  // 选区保存/恢复：点击 Polaris 工具按钮会让富文本失焦，需记住光标位置
+  const saveSel = () => {
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount && richRef.current?.contains(sel.anchorNode)) {
+      savedRange.current = sel.getRangeAt(0).cloneRange();
+    }
+  };
+  const restoreSel = () => {
+    const root = richRef.current;
+    if (!root) return;
+    root.focus();
+    const sel = window.getSelection();
+    if (!sel) return;
+    sel.removeAllRanges();
+    if (savedRange.current && root.contains(savedRange.current.commonAncestorContainer)) {
+      sel.addRange(savedRange.current);
+    } else {
+      const r = document.createRange();
+      r.selectNodeContents(root);
+      r.collapse(false);
+      sel.addRange(r);
+    }
+  };
+
   const exec = (cmd: string, arg?: string) => {
-    richRef.current?.focus();
+    restoreSel();
     document.execCommand(cmd, false, arg);
+    saveSel();
     emitRich();
   };
   const link = () => {
@@ -121,11 +163,46 @@ export function EmailEditor({
     if (url) exec("createLink", url);
   };
 
-  const insertHtml = (html: string) => {
+  // 插入纯文本（变量）到光标处
+  const insertInline = (text: string) => {
     if (mode === "rich") {
-      richRef.current?.focus();
-      document.execCommand("insertHTML", false, html);
-      if (richRef.current) hydrate(richRef.current);
+      restoreSel();
+      document.execCommand("insertText", false, text);
+      saveSel();
+      emitRich();
+    } else {
+      const ta = codeRef.current;
+      if (!ta) { onChange(value + text); return; }
+      const s = ta.selectionStart ?? value.length;
+      const e = ta.selectionEnd ?? value.length;
+      onChange(value.slice(0, s) + text + value.slice(e));
+    }
+  };
+
+  // 插入产品卡（块级）：在光标处放入卡片，并在其后补一行、光标移过去
+  const insertCards = (html: string) => {
+    if (mode === "rich") {
+      const root = richRef.current;
+      if (!root) return;
+      restoreSel();
+      const sel = window.getSelection();
+      const range = sel && sel.rangeCount ? sel.getRangeAt(0) : document.createRange();
+      range.deleteContents();
+      const tmp = document.createElement("div");
+      tmp.innerHTML = html;
+      const frag = document.createDocumentFragment();
+      while (tmp.firstChild) frag.appendChild(tmp.firstChild);
+      const trailing = makeLine();
+      frag.appendChild(trailing);
+      range.insertNode(frag);
+      hydrate(root);
+      // 光标落到卡片后的空行
+      const after = document.createRange();
+      after.setStart(trailing, 0);
+      after.collapse(true);
+      sel?.removeAllRanges();
+      sel?.addRange(after);
+      saveSel();
       emitRich();
     } else {
       const ta = codeRef.current;
@@ -138,10 +215,9 @@ export function EmailEditor({
 
   const pickAndInsert = async () => {
     const cards = await onPickProducts();
-    if (cards.length) insertHtml(cards.map((c) => cardWrapper(c.html, c.label, c.thumb)).join(""));
+    if (cards.length) insertCards(cards.map((c) => cardWrapper(c.html, c.label, c.thumb)).join(""));
   };
 
-  // 点击小卡片右上角 ✕ → 删除该卡片
   const onRichClick = (e: React.MouseEvent) => {
     const t = e.target as HTMLElement;
     if (t.closest?.(".bis-card-x")) {
@@ -169,8 +245,26 @@ export function EmailEditor({
               <Button onClick={link}>链接</Button>
             </ButtonGroup>
           )}
+          <Popover
+            active={varOpen}
+            onClose={() => setVarOpen(false)}
+            activator={
+              <Button disclosure onClick={() => setVarOpen((v) => !v)}>插入变量</Button>
+            }
+          >
+            <ActionList
+              sections={VAR_GROUPS.map((g) => ({
+                title: g.title,
+                items: g.items.map(([label, token]) => ({
+                  content: label,
+                  helpText: token,
+                  onAction: () => { insertInline(token); setVarOpen(false); },
+                })),
+              }))}
+            />
+          </Popover>
           {customerCard && (
-            <Button onClick={() => insertHtml(cardWrapper(customerCard.html, customerCard.label))}>
+            <Button onClick={() => insertCards(cardWrapper(customerCard.html, customerCard.label))}>
               插入客人产品卡
             </Button>
           )}
@@ -203,6 +297,9 @@ export function EmailEditor({
           contentEditable
           onInput={emitRich}
           onClick={onRichClick}
+          onKeyUp={saveSel}
+          onMouseUp={saveSel}
+          onBlur={saveSel}
           suppressContentEditableWarning
           style={{
             minHeight: 220, maxHeight: 360, overflow: "auto",
