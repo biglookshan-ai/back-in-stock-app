@@ -403,7 +403,9 @@ export default function Requests() {
                   <IndexTable.Cell>
                     <Badge tone={TONE[r.status]}>{LABEL[r.status] ?? r.status}</Badge>
                   </IndexTable.Cell>
-                  <IndexTable.Cell>{new Date(r.createdAt).toLocaleString()}</IndexTable.Cell>
+                  <IndexTable.Cell>
+                    <Text as="span" variant="bodySm" tone="subdued">{new Date(r.createdAt).toLocaleDateString()}</Text>
+                  </IndexTable.Cell>
                   <IndexTable.Cell>
                     <InlineStack gap="300">
                       <Button variant="plain" onClick={() => openTag(r)}>标签</Button>
