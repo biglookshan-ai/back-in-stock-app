@@ -22,13 +22,13 @@ export default function App() {
     <AppProvider isEmbeddedApp apiKey={apiKey}>
       <NavMenu>
         <Link to="/app" rel="home">
-          总览
+          Back in Stock Dashboard
         </Link>
+        <Link to="/app/requests">请求列表</Link>
         <Link to="/app/products">产品订阅</Link>
         <Link to="/app/subscribers">订阅者</Link>
-        <Link to="/app/requests">请求列表</Link>
-        <Link to="/app/templates">邮件模板</Link>
         <Link to="/app/custom-templates">自定义模板</Link>
+        <Link to="/app/templates">自动发送模板</Link>
         <Link to="/app/email-shell">页眉页脚</Link>
         <Link to="/app/settings">设置</Link>
       </NavMenu>

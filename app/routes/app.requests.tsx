@@ -349,7 +349,16 @@ export default function Requests() {
     !tagList.includes(tagInput.trim());
 
   return (
-    <Page primaryAction={{ content: "手动添加订阅", url: "/app/requests/new" }}>
+    <Page
+      primaryAction={{ content: "手动添加订阅", url: "/app/requests/new" }}
+      secondaryActions={[
+        {
+          content: selectedResources.length ? `手动发送邮件 (${selectedResources.length})` : "手动发送邮件",
+          onAction: () => setSendOpen(true),
+          disabled: selectedResources.length === 0,
+        },
+      ]}
+    >
       <TitleBar title="请求列表" />
       <Card padding="0">
         <Tabs
@@ -364,13 +373,6 @@ export default function Requests() {
                   value={searchInput} onChange={setSearchInput} clearButton onClearButtonClick={() => setSearchInput("")} autoComplete="off" />
               </Box>
               <InlineStack gap="200">
-                <Button
-                  onClick={() => setSendOpen(true)}
-                  disabled={selectedResources.length === 0}
-                  variant="primary"
-                >
-                  {selectedResources.length ? `发送邮件 (${selectedResources.length})` : "发送邮件"}
-                </Button>
                 <Button onClick={() => exportCsv("view")}>导出当前筛选</Button>
                 <Button onClick={() => exportCsv("all")}>导出全部</Button>
               </InlineStack>

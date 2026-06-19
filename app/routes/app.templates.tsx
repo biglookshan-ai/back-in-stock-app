@@ -205,7 +205,7 @@ export default function Templates() {
 
   return (
     <Page>
-      <TitleBar title="邮件模板" />
+      <TitleBar title="自动发送模板" />
       <Tabs
         selected={tab}
         onSelect={setTab}
