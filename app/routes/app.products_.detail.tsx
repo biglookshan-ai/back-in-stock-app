@@ -7,6 +7,8 @@ import {
   IndexTable,
   Badge,
   Text,
+  Link as PolarisLink,
+  InlineStack,
   EmptyState,
 } from "@shopify/polaris";
 import { TitleBar } from "@shopify/app-bridge-react";
@@ -28,24 +30,34 @@ const LABEL: Record<string, string> = {
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
+  const shop = session.shop;
+  const storeHandle = shop.replace(".myshopify.com", "");
   const productId = new URL(request.url).searchParams.get("productId") ?? "";
 
   const subs = await prisma.subscription.findMany({
-    where: { shop: session.shop, productId },
+    where: { shop, productId },
     orderBy: { createdAt: "desc" },
   });
 
+  const pid = productId.split("/").pop() ?? "";
   return {
     productTitle: subs[0]?.productTitle ?? "产品",
-    rows: subs.map((r) => ({
-      id: r.id,
-      email: r.email,
-      customerName: r.customerName,
-      variantTitle: r.variantTitle,
-      barcode: r.barcode,
-      status: r.status,
-      createdAt: r.createdAt.toISOString(),
-    })),
+    rows: subs.map((r) => {
+      const vid = r.variantId.split("/").pop() ?? "";
+      return {
+        id: r.id,
+        email: r.email,
+        customerName: r.customerName,
+        variantTitle: r.variantTitle,
+        barcode: r.barcode,
+        status: r.status,
+        createdAt: r.createdAt.toISOString(),
+        storefrontUrl: r.productHandle
+          ? `https://${shop}/products/${r.productHandle}?variant=${vid}`
+          : `https://${shop}`,
+        adminUrl: `https://admin.shopify.com/store/${storeHandle}/products/${pid}/variants/${vid}`,
+      };
+    }),
   };
 };
 
@@ -73,7 +85,8 @@ export default function ProductDetail() {
               { title: "变体" },
               { title: "Barcode" },
               { title: "状态" },
-              { title: "订阅时间" },
+              { title: "订阅日期" },
+              { title: "链接" },
             ]}
           >
             {rows.map((r, i) => (
@@ -88,11 +101,21 @@ export default function ProductDetail() {
                   ) : null}
                 </IndexTable.Cell>
                 <IndexTable.Cell>{r.variantTitle}</IndexTable.Cell>
-                <IndexTable.Cell>{r.barcode ?? "—"}</IndexTable.Cell>
+                <IndexTable.Cell>
+                  <Text as="span" variant="bodyMd" fontWeight="medium">{r.barcode ?? "—"}</Text>
+                </IndexTable.Cell>
                 <IndexTable.Cell>
                   <Badge tone={TONE[r.status] ?? "info"}>{LABEL[r.status] ?? r.status}</Badge>
                 </IndexTable.Cell>
-                <IndexTable.Cell>{new Date(r.createdAt).toLocaleString()}</IndexTable.Cell>
+                <IndexTable.Cell>
+                  <Text as="span" variant="bodySm" tone="subdued">{new Date(r.createdAt).toLocaleDateString()}</Text>
+                </IndexTable.Cell>
+                <IndexTable.Cell>
+                  <InlineStack gap="300">
+                    <PolarisLink url={r.storefrontUrl} target="_blank">前台 ↗</PolarisLink>
+                    <PolarisLink url={r.adminUrl} target="_blank">后台 ↗</PolarisLink>
+                  </InlineStack>
+                </IndexTable.Cell>
               </IndexTable.Row>
             ))}
           </IndexTable>

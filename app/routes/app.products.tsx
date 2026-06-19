@@ -102,6 +102,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   }
 
   rows.sort((a, b) => {
+    if (sort === "name")
+      return a.productTitle.localeCompare(b.productTitle) || (a.variantTitle ?? "").localeCompare(b.variantTitle ?? "");
     if (sort === "active") return b.active - a.active || (b.last ?? "").localeCompare(a.last ?? "");
     if (sort === "total") return b.total - a.total || (b.last ?? "").localeCompare(a.last ?? "");
     return (b.last ?? "").localeCompare(a.last ?? "");
@@ -147,6 +149,7 @@ export default function Products() {
                   label="排序" labelInline
                   options={[
                     { label: "最后请求", value: "last" },
+                    { label: "产品名称", value: "name" },
                     { label: "当前等待", value: "active" },
                     { label: "历史总请求", value: "total" },
                   ]}
