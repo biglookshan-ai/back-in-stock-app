@@ -22,7 +22,7 @@ import {
 import { TitleBar, useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
-import { sendManualEmail } from "../models/subscription.server";
+import { sendManualEmail, getSettings } from "../models/subscription.server";
 
 // 把 URL/表单的筛选条件构造成 Prisma where（loader 与群发 action 共用）
 function buildWhere(shop: string, sp: URLSearchParams): any {
@@ -52,6 +52,34 @@ function buildWhere(shop: string, sp: URLSearchParams): any {
   return where;
 }
 
+// 客户端渲染（与服务端一致：条件块 + 变量），用于预览
+function renderClient(tpl: string, vars: Record<string, string>) {
+  let out = tpl.replace(/\{\{#if\s+(\w+)\}\}([\s\S]*?)\{\{\/if\}\}/g, (_m, k, inner) => (vars[k] ? inner : ""));
+  out = out.replace(/\{\{#unless\s+(\w+)\}\}([\s\S]*?)\{\{\/unless\}\}/g, (_m, k, inner) => (vars[k] ? "" : inner));
+  return out.replace(/\{\{\s*(\w+)\s*\}\}/g, (_m, k) => (k in vars ? String(vars[k]) : ""));
+}
+// 预览用样例（客人订阅的产品）
+const SAMPLE_VARS: Record<string, string> = {
+  customer_name: "Alex", customer_email: "customer@example.com",
+  product_title: "客人订阅的产品", variant_title: "EF Mount",
+  product_image: "https://placehold.co/240x240/1a1a1a/ffffff?text=Product",
+  product_price: "£2,629.95", product_url: "#", unsubscribe_url: "#",
+};
+// 推荐产品卡 HTML（颜色用 {{brand_color}} 变量，发送时按品牌渲染）
+function productCard(p: { title: string; image: string; price: string; url: string }) {
+  return `
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #eee;border-radius:10px;overflow:hidden;margin:12px 0">
+  <tr>
+    ${p.image ? `<td width="120" style="padding:0"><img src="${p.image}" width="120" style="width:120px;height:120px;object-fit:cover;display:block;border:0"></td>` : ""}
+    <td style="padding:14px 16px;vertical-align:top">
+      <div style="font-size:15px;font-weight:700;color:#1a1a1a">${p.title}</div>
+      ${p.price ? `<div style="font-size:14px;font-weight:600;color:{{brand_color}};margin-top:6px">${p.price}</div>` : ""}
+      <a href="${p.url}" style="display:inline-block;margin-top:10px;background:{{brand_color}};color:#fff;padding:8px 18px;border-radius:6px;text-decoration:none;font-size:13px">View product</a>
+    </td>
+  </tr>
+</table>`;
+}
+
 const STATUS_TABS = [
   { id: "", label: "全部" },
   { id: "ACTIVE", label: "等待中" },
@@ -76,7 +104,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const q = url.searchParams.get("q")?.trim() ?? "";
   const where = buildWhere(shop, url.searchParams);
 
-  const [rows, counts, filteredCount, customTemplates] = await Promise.all([
+  const [rows, counts, filteredCount, customTemplates, settings] = await Promise.all([
     prisma.subscription.findMany({ where, orderBy: { createdAt: "desc" }, take: 500 }),
     prisma.subscription.groupBy({ by: ["status"], where: { shop }, _count: { _all: true } }),
     prisma.subscription.count({ where }),
@@ -85,6 +113,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       orderBy: { updatedAt: "desc" },
       select: { id: true, name: true, subject: true, htmlBody: true },
     }),
+    getSettings(shop),
   ]);
 
   const countMap: Record<string, number> = {};
@@ -103,6 +132,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       createdAt: r.createdAt.toISOString(),
     })),
     counts: countMap, status, q, filteredCount, customTemplates,
+    shop,
+    brand: {
+      shop_name: settings.fromName, brand_logo: settings.logoUrl, brand_color: settings.brandColor,
+      website_url: settings.websiteUrl, company_address: settings.companyAddress, support_email: settings.supportEmail,
+    },
   };
 };
 
@@ -172,10 +206,11 @@ type Row = {
 type CustomTpl = { id: string; name: string; subject: string; htmlBody: string };
 
 export default function Requests() {
-  const { rows, counts, status, q, filteredCount, customTemplates } =
+  const { rows, counts, status, q, customTemplates, shop, brand } =
     useLoaderData<typeof loader>() as {
       rows: Row[]; counts: Record<string, number>; status: string; q: string;
       filteredCount: number; customTemplates: CustomTpl[];
+      shop: string; brand: Record<string, string>;
     };
   const [params, setParams] = useSearchParams();
   const fetcher = useFetcher<{ ok: boolean; message?: string; csv?: string; filename?: string }>();
@@ -225,6 +260,23 @@ export default function Requests() {
       { intent: "sendmail", subject: sendSubject, htmlBody: sendBody, ids: selectedResources.join(",") },
       { method: "POST" },
     );
+
+  // 插入推荐产品卡：选产品 → 追加产品卡 HTML 到正文
+  const insertProductCards = async () => {
+    const picked = await shopify.resourcePicker({ type: "product", multiple: true });
+    if (!picked || picked.length === 0) return;
+    const cards = (picked as any[])
+      .map((p) => {
+        const img = p.images?.[0]?.originalSrc || p.images?.[0]?.url || p.featuredImage?.url || "";
+        const price = p.variants?.[0]?.price ? String(p.variants[0].price) : "";
+        const url = p.handle ? `https://${shop}/products/${p.handle}` : "#";
+        return productCard({ title: p.title, image: img, price, url });
+      })
+      .join("");
+    setSendBody((b) => b + cards);
+  };
+
+  const sendPreview = renderClient(sendBody, { ...SAMPLE_VARS, ...brand });
 
   // 搜索框：本地状态 + 防抖（避免每次按键都跳转、丢焦点）
   const [searchInput, setSearchInput] = useState(q);
@@ -413,10 +465,19 @@ export default function Requests() {
               helpText="模板在「自定义邮件模板」页管理。选了可继续编辑。"
             />
             <TextField label="主题" value={sendSubject} onChange={setSendSubject} autoComplete="off" />
-            <TextField label="正文（HTML，支持变量）" value={sendBody} onChange={setSendBody} multiline={8} autoComplete="off" />
+            <InlineStack align="space-between" blockAlign="center">
+              <Text as="span" variant="bodyMd" fontWeight="medium">正文（HTML，支持变量）</Text>
+              <Button onClick={insertProductCards}>插入产品卡（推荐其它产品）</Button>
+            </InlineStack>
+            <TextField label="正文" labelHidden value={sendBody} onChange={setSendBody} multiline={8} autoComplete="off" />
             <Text as="p" tone="subdued" variant="bodySm">
-              变量:{"{{customer_name}} {{product_title}} {{variant_title}} {{product_url}} {{unsubscribe_url}}"} 等。每人会按自己订阅的商品渲染。
+              变量:{"{{customer_name}} {{product_title}} {{product_image}} {{product_price}} {{product_url}} {{unsubscribe_url}}"}（每人按自己订阅的商品渲染）。「插入产品卡」会追加你选的推荐产品(图+价+链接)。
             </Text>
+            <Text as="span" variant="bodyMd" fontWeight="medium">实时预览</Text>
+            <Box borderRadius="200" borderWidth="025" borderColor="border">
+              <iframe title="send-preview" srcDoc={sendPreview}
+                style={{ width: "100%", height: 320, border: "none", display: "block" }} />
+            </Box>
           </BlockStack>
         </Modal.Section>
       </Modal>
