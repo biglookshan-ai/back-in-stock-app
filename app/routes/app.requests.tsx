@@ -145,6 +145,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     rows: rows.map((r) => ({
       id: r.id, email: r.email, customerName: r.customerName,
       productTitle: r.productTitle, variantTitle: r.variantTitle,
+      productImage: r.productImage, price: r.price, productHandle: r.productHandle,
       status: r.status, tags: r.tags, marketing: r.marketingConsent,
       createdAt: r.createdAt.toISOString(),
     })),
@@ -219,8 +220,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
 type Row = {
   id: string; email: string; customerName: string | null;
-  productTitle: string; variantTitle: string; status: string;
-  tags: string; marketing: boolean; createdAt: string;
+  productTitle: string; variantTitle: string;
+  productImage: string | null; price: string | null; productHandle: string | null;
+  status: string; tags: string; marketing: boolean; createdAt: string;
 };
 
 type CustomTpl = { id: string; name: string; subject: string; htmlBody: string; useGlobalShell: boolean };
@@ -299,7 +301,20 @@ export default function Requests() {
   const sendWrapped = sendShell
     ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:24px 12px;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;"><tr><td align="center"><table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;border:1px solid #eaeaea;">${globalHeader}<tr><td style="padding:0">${sendBody}</td></tr>${globalFooter}</table></td></tr></table>`
     : sendBody;
-  const sendPreview = renderClient(sendWrapped, { ...SAMPLE_VARS, ...brand });
+  // 预览用「第一个勾选客人」的真实产品；没勾选则回退到样例
+  const firstSel = rows.find((r) => r.id === selectedResources[0]);
+  const previewProductVars: Record<string, string> = firstSel
+    ? {
+        customer_name: firstSel.customerName ?? "",
+        customer_email: firstSel.email,
+        product_title: firstSel.productTitle,
+        variant_title: firstSel.variantTitle && firstSel.variantTitle !== "Default Title" ? firstSel.variantTitle : "",
+        product_image: firstSel.productImage ?? "",
+        product_price: firstSel.price ?? "",
+        product_url: firstSel.productHandle ? `https://${shop}/products/${firstSel.productHandle}` : "#",
+      }
+    : {};
+  const sendPreview = renderClient(sendWrapped, { ...SAMPLE_VARS, ...brand, ...previewProductVars });
 
   // 搜索框：本地状态 + 防抖（避免每次按键都跳转、丢焦点）
   const [searchInput, setSearchInput] = useState(q);
@@ -482,10 +497,17 @@ export default function Requests() {
       >
         <Modal.Section>
           {previewMode ? (
-            <Box borderRadius="200" borderWidth="025" borderColor="border">
-              <iframe title="send-preview" srcDoc={sendPreview}
-                style={{ width: "100%", height: 480, border: "none", display: "block" }} />
-            </Box>
+            <BlockStack gap="200">
+              {firstSel && (
+                <Text as="p" tone="subdued" variant="bodySm">
+                  预览以勾选的第一位客人为例：<b>{firstSel.customerName || firstSel.email}</b> 订阅了「{firstSel.productTitle}{firstSel.variantTitle && firstSel.variantTitle !== "Default Title" ? ` / ${firstSel.variantTitle}` : ""}」。每位收件人都会替换成自己订阅的产品。
+                </Text>
+              )}
+              <Box borderRadius="200" borderWidth="025" borderColor="border">
+                <iframe title="send-preview" srcDoc={sendPreview}
+                  style={{ width: "100%", height: 480, border: "none", display: "block" }} />
+              </Box>
+            </BlockStack>
           ) : (
             <BlockStack gap="300">
               <Text as="p" tone="subdued" variant="bodySm">
