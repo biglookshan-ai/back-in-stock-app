@@ -1,6 +1,7 @@
 // 订阅者列表：按邮箱聚合 —— 姓名 / 营销同意 / 首次请求 / 总请求数 + CSV 导出
-import type { LoaderFunctionArgs } from "@remix-run/node";
-import { useLoaderData, Link } from "@remix-run/react";
+import { useEffect } from "react";
+import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
+import { useLoaderData, Link, useFetcher } from "@remix-run/react";
 import {
   Page,
   Card,
@@ -56,29 +57,47 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   }
   const subscribers = [...map.values()].sort((a, b) => b.firstAt.localeCompare(a.firstAt));
 
-  // CSV 导出
-  const exp = url.searchParams.get("export");
+  return { subscribers: subscribers.slice(0, 1000), totalCount: subscribers.length };
+};
+
+export const action = async ({ request }: ActionFunctionArgs) => {
+  const { session } = await authenticate.admin(request);
+  const shop = session.shop;
+  const fd = await request.formData();
+  const mode = String(fd.get("mode") ?? "list");
   const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
-  if (exp === "list") {
-    const header = "email,name,marketing,first_request,total_requests\n";
-    const body = subscribers
-      .map((s) => [s.email, s.name, s.marketing ? "Yes" : "No", s.firstAt, s.total].map(esc).join(","))
-      .join("\n");
-    return new Response(header + body, {
-      headers: { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": 'attachment; filename="subscribers.csv"' },
-    });
-  }
-  if (exp === "details") {
+
+  const all = await prisma.subscription.findMany({
+    where: { shop },
+    select: { email: true, customerName: true, marketingConsent: true, createdAt: true, productTitle: true, variantTitle: true, status: true, barcode: true },
+    orderBy: { createdAt: "desc" },
+  });
+
+  if (mode === "details") {
     const header = "email,name,marketing,product,variant,barcode,status,date\n";
     const body = all
       .map((r) => [r.email, r.customerName, r.marketingConsent ? "Yes" : "No", r.productTitle, r.variantTitle, r.barcode, r.status, r.createdAt.toISOString()].map(esc).join(","))
       .join("\n");
-    return new Response(header + body, {
-      headers: { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": 'attachment; filename="subscriptions_details.csv"' },
-    });
+    return { csv: header + body, filename: "subscriptions_details.csv" };
   }
 
-  return { subscribers: subscribers.slice(0, 1000), totalCount: subscribers.length };
+  // list：按邮箱聚合
+  const map = new Map<string, { email: string; name: string | null; marketing: boolean; firstAt: string; total: number }>();
+  for (const r of all) {
+    const cur = map.get(r.email);
+    if (!cur) map.set(r.email, { email: r.email, name: r.customerName, marketing: r.marketingConsent, firstAt: r.createdAt.toISOString(), total: 1 });
+    else {
+      cur.total += 1;
+      if (!cur.name && r.customerName) cur.name = r.customerName;
+      if (r.marketingConsent) cur.marketing = true;
+      if (r.createdAt.toISOString() < cur.firstAt) cur.firstAt = r.createdAt.toISOString();
+    }
+  }
+  const header = "email,name,marketing,first_request,total_requests\n";
+  const body = [...map.values()]
+    .map((s) => [s.email, s.name, s.marketing ? "Yes" : "No", s.firstAt, s.total].map(esc).join(","))
+    .join("\n");
+  return { csv: header + body, filename: "subscribers.csv" };
 };
 
 export default function Subscribers() {
@@ -87,15 +106,18 @@ export default function Subscribers() {
     totalCount: number;
   };
 
-  const exportCsv = async (mode: "list" | "details") => {
-    const resp = await fetch(`/app/subscribers?export=${mode}`);
-    const text = await resp.text();
+  const fetcher = useFetcher<{ csv?: string; filename?: string }>();
+  useEffect(() => {
+    if (fetcher.state !== "idle" || !fetcher.data?.csv) return;
     const a = document.createElement("a");
-    a.href = URL.createObjectURL(new Blob([text], { type: "text/csv;charset=utf-8" }));
-    a.download = mode === "list" ? "subscribers.csv" : "subscriptions_details.csv";
+    a.href = URL.createObjectURL(new Blob([fetcher.data.csv], { type: "text/csv;charset=utf-8" }));
+    a.download = fetcher.data.filename || "export.csv";
     document.body.appendChild(a); a.click(); a.remove();
     URL.revokeObjectURL(a.href);
-  };
+  }, [fetcher.state, fetcher.data]);
+
+  const exportCsv = (mode: "list" | "details") =>
+    fetcher.submit({ mode }, { method: "POST" });
 
   return (
     <Page>

@@ -76,26 +76,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const q = url.searchParams.get("q")?.trim() ?? "";
   const where = buildWhere(shop, url.searchParams);
 
-  // ── CSV 导出 ──
-  const exp = url.searchParams.get("export");
-  if (exp) {
-    const expWhere = exp === "all" ? { shop } : where;
-    const all = await prisma.subscription.findMany({ where: expWhere, orderBy: { createdAt: "desc" } });
-    const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
-    const header = "email,name,marketing,tags,product,variant,barcode,status,source,price,subscribedAt,notifiedAt,orderedAt\n";
-    const body = all
-      .map((r) => [
-        r.email, r.customerName, r.marketingConsent ? "Yes" : "No", r.tags,
-        r.productTitle, r.variantTitle, r.barcode, r.status, r.source, r.price,
-        r.createdAt.toISOString(), r.notifiedAt?.toISOString() ?? "", r.orderedAt?.toISOString() ?? "",
-      ].map(esc).join(","))
-      .join("\n");
-    const fname = exp === "all" ? "subscriptions_all" : `subscriptions_${status || "filtered"}`;
-    return new Response(header + body, {
-      headers: { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": `attachment; filename="${fname}.csv"` },
-    });
-  }
-
   const [rows, counts, filteredCount, customTemplates] = await Promise.all([
     prisma.subscription.findMany({ where, orderBy: { createdAt: "desc" }, take: 500 }),
     prisma.subscription.groupBy({ by: ["status"], where: { shop }, _count: { _all: true } }),
@@ -145,6 +125,29 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     return { ok: true, message: `已发送 ${sent} 封` };
   }
 
+  // 导出 CSV：返回字符串，前端转成文件下载（走 action，认证可靠）
+  if (intent === "export") {
+    const mode = String(fd.get("mode") ?? "all");
+    const sp = new URLSearchParams();
+    ["status", "q", "marketing", "tag", "from", "to"].forEach((k) => {
+      const v = fd.get(k);
+      if (v) sp.set(k, String(v));
+    });
+    const expWhere = mode === "all" ? { shop: session.shop } : buildWhere(session.shop, sp);
+    const all = await prisma.subscription.findMany({ where: expWhere, orderBy: { createdAt: "desc" } });
+    const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const header = "email,name,marketing,tags,product,variant,barcode,status,source,price,subscribedAt,notifiedAt,orderedAt\n";
+    const body = all
+      .map((r) => [
+        r.email, r.customerName, r.marketingConsent ? "Yes" : "No", r.tags,
+        r.productTitle, r.variantTitle, r.barcode, r.status, r.source, r.price,
+        r.createdAt.toISOString(), r.notifiedAt?.toISOString() ?? "", r.orderedAt?.toISOString() ?? "",
+      ].map(esc).join(","))
+      .join("\n");
+    const filename = mode === "all" ? "subscriptions_all.csv" : `subscriptions_${sp.get("status") || "filtered"}.csv`;
+    return { ok: true, csv: header + body, filename };
+  }
+
   const id = String(fd.get("id"));
   const where = { id, shop: session.shop };
 
@@ -175,7 +178,7 @@ export default function Requests() {
       filteredCount: number; customTemplates: CustomTpl[];
     };
   const [params, setParams] = useSearchParams();
-  const fetcher = useFetcher<{ ok: boolean; message?: string }>();
+  const fetcher = useFetcher<{ ok: boolean; message?: string; csv?: string; filename?: string }>();
   const shopify = useAppBridge();
 
   const [tagEditId, setTagEditId] = useState<string | null>(null);
@@ -192,9 +195,19 @@ export default function Requests() {
   const [sendBody, setSendBody] = useState("");
 
   useEffect(() => {
-    if (fetcher.state === "idle" && fetcher.data?.message) {
-      shopify.toast.show(fetcher.data.message);
-      if (fetcher.data.ok && sendOpen) setSendOpen(false);
+    if (fetcher.state !== "idle" || !fetcher.data) return;
+    const d = fetcher.data;
+    if (d.csv != null) {
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([d.csv], { type: "text/csv;charset=utf-8" }));
+      a.download = d.filename || "export.csv";
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(a.href);
+      return;
+    }
+    if (d.message) {
+      shopify.toast.show(d.message);
+      if (d.ok && sendOpen) setSendOpen(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetcher.state, fetcher.data]);
@@ -221,21 +234,14 @@ export default function Requests() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchInput]);
 
-  // 导出 CSV：用带登录态的 fetch 取数据，浏览器直接下载（不跳登录页、不占邮件额度）
-  const exportCsv = async (mode: "view" | "all") => {
-    const sp = new URLSearchParams();
+  // 导出 CSV：走 action（认证可靠），返回字符串后前端转文件下载
+  const exportCsv = (mode: "view" | "all") => {
+    const data: Record<string, string> = { intent: "export", mode };
     if (mode === "view") {
-      if (status) sp.set("status", status);
-      (["q", "marketing", "tag", "from", "to"] as const).forEach((k) => { if (get(k)) sp.set(k, get(k)); });
+      if (status) data.status = status;
+      (["q", "marketing", "tag", "from", "to"] as const).forEach((k) => { if (get(k)) data[k] = get(k); });
     }
-    sp.set("export", mode);
-    const resp = await fetch(`/app/requests?${sp.toString()}`);
-    const text = await resp.text();
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(new Blob([text], { type: "text/csv;charset=utf-8" }));
-    a.download = mode === "all" ? "subscriptions_all.csv" : `subscriptions_${status || "filtered"}.csv`;
-    document.body.appendChild(a); a.click(); a.remove();
-    URL.revokeObjectURL(a.href);
+    fetcher.submit(data, { method: "POST" });
   };
 
   const setParam = (key: string, value: string) => {
