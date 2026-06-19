@@ -63,25 +63,27 @@ model Subscription {
 
 // ── 邮件模板（确认 / 到货） ────────────────────────────────────────
 model EmailTemplate {
-  id        String   @id @default(cuid())
-  shop      String
-  type      String // CONFIRMATION | BACK_IN_STOCK
-  subject   String
-  htmlBody  String
-  enabled   Boolean  @default(true)
-  updatedAt DateTime @updatedAt
+  id             String   @id @default(cuid())
+  shop           String
+  type           String // CONFIRMATION | BACK_IN_STOCK
+  subject        String
+  htmlBody       String
+  enabled        Boolean  @default(true)
+  useGlobalShell Boolean  @default(false) // true=正文外套全局页眉/页脚
+  updatedAt      DateTime @updatedAt
 
   @@unique([shop, type])
 }
 
 // ── 自定义邮件模板库（手动发送用，可存多个） ─────────────────────
 model CustomTemplate {
-  id        String   @id @default(cuid())
-  shop      String
-  name      String
-  subject   String
-  htmlBody  String
-  updatedAt DateTime @updatedAt
+  id             String   @id @default(cuid())
+  shop           String
+  name           String
+  subject        String
+  htmlBody       String
+  useGlobalShell Boolean  @default(true)
+  updatedAt      DateTime @updatedAt
 
   @@index([shop])
 }
@@ -124,4 +126,8 @@ model Settings {
   websiteUrl     String @default("") // 官网链接
   companyAddress String @default("") // 公司地址（页脚）
   supportEmail   String @default("") // 客服邮箱（页脚）
+
+  // 全局邮件页眉/页脚（统一编辑，所有用全局的模板共用；空=用内置默认）
+  emailHeader String @default("")
+  emailFooter String @default("")
 }

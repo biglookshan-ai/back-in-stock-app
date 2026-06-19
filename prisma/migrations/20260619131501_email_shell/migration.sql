@@ -1,0 +1,4 @@
+ALTER TABLE "Settings" ADD COLUMN "emailHeader" TEXT NOT NULL DEFAULT '';
+ALTER TABLE "Settings" ADD COLUMN "emailFooter" TEXT NOT NULL DEFAULT '';
+ALTER TABLE "EmailTemplate" ADD COLUMN "useGlobalShell" BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "CustomTemplate" ADD COLUMN "useGlobalShell" BOOLEAN NOT NULL DEFAULT true;

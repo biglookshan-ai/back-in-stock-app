@@ -16,6 +16,7 @@ import {
   InlineStack,
   Text,
   Modal,
+  Checkbox,
   EmptyState,
   useIndexResourceState,
 } from "@shopify/polaris";
@@ -23,6 +24,7 @@ import { TitleBar, useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { sendManualEmail, getSettings } from "../models/subscription.server";
+import { DEFAULT_HEADER, DEFAULT_FOOTER } from "../email-templates.server";
 import { EmailEditor } from "../components/EmailEditor";
 
 // 把 URL/表单的筛选条件构造成 Prisma where（loader 与群发 action 共用）
@@ -81,6 +83,20 @@ function productCard(p: { title: string; image: string; price: string; url: stri
 </table>`;
 }
 
+// 客人订阅的产品卡（带变量，发送时每人按自己的订阅渲染）
+const CUSTOMER_CARD = `
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #eee;border-radius:10px;overflow:hidden;margin:12px 0">
+  <tr>
+    {{#if product_image}}<td width="120" style="padding:0"><img src="{{product_image}}" width="120" style="width:120px;height:120px;object-fit:cover;display:block;border:0"></td>{{/if}}
+    <td style="padding:14px 16px;vertical-align:top">
+      <div style="font-size:15px;font-weight:700;color:#1a1a1a">{{product_title}}</div>
+      {{#if variant_title}}<div style="font-size:13px;color:#888;margin-top:4px">{{variant_title}}</div>{{/if}}
+      {{#if product_price}}<div style="font-size:14px;font-weight:600;color:{{brand_color}};margin-top:6px">{{product_price}}</div>{{/if}}
+      <a href="{{product_url}}" style="display:inline-block;margin-top:10px;background:{{brand_color}};color:#fff;padding:8px 18px;border-radius:6px;text-decoration:none;font-size:13px">View product</a>
+    </td>
+  </tr>
+</table>`;
+
 const STATUS_TABS = [
   { id: "", label: "全部" },
   { id: "ACTIVE", label: "等待中" },
@@ -112,7 +128,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     prisma.customTemplate.findMany({
       where: { shop },
       orderBy: { updatedAt: "desc" },
-      select: { id: true, name: true, subject: true, htmlBody: true },
+      select: { id: true, name: true, subject: true, htmlBody: true, useGlobalShell: true },
     }),
     getSettings(shop),
   ]);
@@ -134,6 +150,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     })),
     counts: countMap, status, q, filteredCount, customTemplates,
     shop,
+    globalHeader: settings.emailHeader || DEFAULT_HEADER,
+    globalFooter: settings.emailFooter || DEFAULT_FOOTER,
     brand: {
       shop_name: settings.fromName, brand_logo: settings.logoUrl, brand_color: settings.brandColor,
       website_url: settings.websiteUrl, company_address: settings.companyAddress, support_email: settings.supportEmail,
@@ -153,10 +171,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     if (!subject || !htmlBody) return { ok: false, message: "主题和正文不能为空" };
     const ids = String(fd.get("ids") ?? "").split(",").map((s) => s.trim()).filter(Boolean);
     if (ids.length === 0) return { ok: false, message: "请先勾选收件人" };
+    const useGlobalShell = fd.get("useGlobalShell") !== "false";
     const subs = await prisma.subscription.findMany({
       where: { shop: session.shop, id: { in: ids } },
     });
-    const sent = await sendManualEmail(subs, subject, htmlBody);
+    const sent = await sendManualEmail(subs, subject, htmlBody, useGlobalShell);
     return { ok: true, message: `已发送 ${sent} 封` };
   }
 
@@ -204,14 +223,15 @@ type Row = {
   tags: string; marketing: boolean; createdAt: string;
 };
 
-type CustomTpl = { id: string; name: string; subject: string; htmlBody: string };
+type CustomTpl = { id: string; name: string; subject: string; htmlBody: string; useGlobalShell: boolean };
 
 export default function Requests() {
-  const { rows, counts, status, q, customTemplates, shop, brand } =
+  const { rows, counts, status, q, customTemplates, shop, brand, globalHeader, globalFooter } =
     useLoaderData<typeof loader>() as {
       rows: Row[]; counts: Record<string, number>; status: string; q: string;
       filteredCount: number; customTemplates: CustomTpl[];
       shop: string; brand: Record<string, string>;
+      globalHeader: string; globalFooter: string;
     };
   const [params, setParams] = useSearchParams();
   const fetcher = useFetcher<{ ok: boolean; message?: string; csv?: string; filename?: string }>();
@@ -229,6 +249,7 @@ export default function Requests() {
   const [sendTplId, setSendTplId] = useState("");
   const [sendSubject, setSendSubject] = useState("");
   const [sendBody, setSendBody] = useState("");
+  const [sendShell, setSendShell] = useState(true);
   const [previewMode, setPreviewMode] = useState(false);
 
   useEffect(() => {
@@ -255,11 +276,11 @@ export default function Requests() {
   const pickSendTpl = (id: string) => {
     setSendTplId(id);
     const t = customTemplates.find((x) => x.id === id);
-    if (t) { setSendSubject(t.subject); setSendBody(t.htmlBody); }
+    if (t) { setSendSubject(t.subject); setSendBody(t.htmlBody); setSendShell(t.useGlobalShell); }
   };
   const doSend = () =>
     fetcher.submit(
-      { intent: "sendmail", subject: sendSubject, htmlBody: sendBody, ids: selectedResources.join(",") },
+      { intent: "sendmail", subject: sendSubject, htmlBody: sendBody, useGlobalShell: String(sendShell), ids: selectedResources.join(",") },
       { method: "POST" },
     );
 
@@ -275,7 +296,10 @@ export default function Requests() {
     });
   };
 
-  const sendPreview = renderClient(sendBody, { ...SAMPLE_VARS, ...brand });
+  const sendWrapped = sendShell
+    ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:24px 12px;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;"><tr><td align="center"><table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;border:1px solid #eaeaea;">${globalHeader}${sendBody}${globalFooter}</table></td></tr></table>`
+    : sendBody;
+  const sendPreview = renderClient(sendWrapped, { ...SAMPLE_VARS, ...brand });
 
   // 搜索框：本地状态 + 防抖（避免每次按键都跳转、丢焦点）
   const [searchInput, setSearchInput] = useState(q);
@@ -465,8 +489,14 @@ export default function Requests() {
           ) : (
             <BlockStack gap="300">
               <Text as="p" tone="subdued" variant="bodySm">
-                发送给<b>勾选</b>的客人。富文本/代码可切换;「插入产品卡」插到光标处;「预览」看效果。
+                发送给<b>勾选</b>的客人。富文本/代码可切换;插入产品卡到光标处;「预览」看效果。
               </Text>
+              <Checkbox
+                label="使用全局页眉/页脚（顶部 logo + 底部公司信息）"
+                checked={sendShell}
+                onChange={setSendShell}
+                helpText="勾选时只写正文，页眉页脚由「页眉页脚」页统一提供。"
+              />
               <Select
                 label="选择模板（可选）"
                 options={[
@@ -478,7 +508,7 @@ export default function Requests() {
                 helpText="模板在「自定义邮件模板」页管理。选了可继续编辑。"
               />
               <TextField label="主题" value={sendSubject} onChange={setSendSubject} autoComplete="off" />
-              <EmailEditor value={sendBody} onChange={setSendBody} onPickProducts={pickProductCards} />
+              <EmailEditor value={sendBody} onChange={setSendBody} onPickProducts={pickProductCards} customerCardHtml={CUSTOMER_CARD} />
               <Text as="p" tone="subdued" variant="bodySm">
                 变量:{"{{customer_name}} {{product_title}} {{product_image}} {{product_price}} {{product_url}} {{unsubscribe_url}}"}（每人按自己订阅的商品渲染）。
               </Text>

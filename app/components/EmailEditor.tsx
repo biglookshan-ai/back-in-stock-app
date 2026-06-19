@@ -6,11 +6,14 @@ export function EmailEditor({
   value,
   onChange,
   onPickProducts,
+  customerCardHtml,
 }: {
   value: string;
   onChange: (html: string) => void;
   // 返回要插入的产品卡 HTML 数组（由父组件用 Resource Picker 选择并生成）
   onPickProducts: () => Promise<string[]>;
+  // 若提供：显示「插入客人产品卡」按钮，把这段（带变量的）HTML 插到光标处
+  customerCardHtml?: string;
 }) {
   const [mode, setMode] = useState<"rich" | "code">("rich");
   const richRef = useRef<HTMLDivElement>(null);
@@ -75,7 +78,10 @@ export function EmailEditor({
               <Button onClick={link}>链接</Button>
             </ButtonGroup>
           )}
-          <Button onClick={pickAndInsert} variant="primary">插入产品卡</Button>
+          {customerCardHtml && (
+            <Button onClick={() => insertHtml(customerCardHtml)}>插入客人产品卡</Button>
+          )}
+          <Button onClick={pickAndInsert} variant="primary">插入推荐产品卡</Button>
         </InlineStack>
       </div>
 

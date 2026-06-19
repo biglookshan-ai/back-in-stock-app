@@ -2,7 +2,13 @@
 import crypto from "crypto";
 import prisma from "../db.server";
 import { mailer } from "../mailer.server";
-import { getTemplate, renderTemplate } from "../email-templates.server";
+import {
+  getTemplate,
+  renderTemplate,
+  composeEmail,
+  DEFAULT_HEADER,
+  DEFAULT_FOOTER,
+} from "../email-templates.server";
 
 const SIGN_SECRET = process.env.SHOPIFY_API_SECRET || "dev-secret";
 
@@ -230,10 +236,11 @@ export async function sendManualEmail(
   subs: Array<Parameters<typeof sendEmail>[0]>,
   subject: string,
   htmlBody: string,
+  useGlobalShell = true,
 ) {
   let sent = 0;
   for (const sub of subs) {
-    const res = await sendEmail(sub, "MANUAL", { subject, htmlBody });
+    const res = await sendEmail(sub, "MANUAL", { subject, htmlBody, useGlobalShell });
     if (res.ok) sent++;
     await new Promise((r) => setTimeout(r, 150)); // 温和限速
   }
@@ -255,13 +262,21 @@ async function sendEmail(
     price: string | null;
   },
   type: string, // CONFIRMATION | BACK_IN_STOCK | MANUAL
-  tpl: { subject: string; htmlBody: string },
+  tpl: { subject: string; htmlBody: string; useGlobalShell?: boolean },
 ) {
   const settings = await getSettings(sub.shop);
   const appUrl = process.env.SHOPIFY_APP_URL || "";
   const variantLabel =
     sub.variantTitle && sub.variantTitle !== "Default Title" ? sub.variantTitle : "";
-  const { subject, html } = renderTemplate(tpl, {
+  // 用全局页眉/页脚时：把「正文」包进全局外壳（设置为空则用内置默认）。
+  const rawHtml = tpl.useGlobalShell
+    ? composeEmail(
+        settings.emailHeader || DEFAULT_HEADER,
+        tpl.htmlBody,
+        settings.emailFooter || DEFAULT_FOOTER,
+      )
+    : tpl.htmlBody;
+  const { subject, html } = renderTemplate({ subject: tpl.subject, htmlBody: rawHtml }, {
     customer_email: sub.email,
     customer_name: sub.customerName ?? "",
     product_title: sub.productTitle,

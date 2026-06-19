@@ -22,7 +22,10 @@ import prisma from "../db.server";
 import {
   getAllTemplates,
   renderTemplate,
+  composeEmail,
   DEFAULT_TEMPLATES,
+  DEFAULT_HEADER,
+  DEFAULT_FOOTER,
   type TemplateType,
 } from "../email-templates.server";
 import { mailer } from "../mailer.server";
@@ -36,6 +39,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   ]);
   return {
     templates,
+    globalHeader: settings.emailHeader || DEFAULT_HEADER,
+    globalFooter: settings.emailFooter || DEFAULT_FOOTER,
     brand: {
       shop_name: settings.fromName,
       brand_logo: settings.logoUrl,
@@ -58,21 +63,22 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const def = DEFAULT_TEMPLATES[type];
     await prisma.emailTemplate.upsert({
       where: { shop_type: { shop, type } },
-      update: { subject: def.subject, htmlBody: def.htmlBody, enabled: true },
-      create: { shop, type, subject: def.subject, htmlBody: def.htmlBody, enabled: true },
+      update: { subject: def.subject, htmlBody: def.htmlBody, enabled: true, useGlobalShell: true },
+      create: { shop, type, subject: def.subject, htmlBody: def.htmlBody, enabled: true, useGlobalShell: true },
     });
-    return { ok: true, message: "已恢复默认模板", reset: { type, ...def } };
+    return { ok: true, message: "已恢复默认模板", reset: { type, ...def, useGlobalShell: true } };
   }
 
   const subject = String(fd.get("subject") ?? "");
   const htmlBody = String(fd.get("htmlBody") ?? "");
   const enabled = fd.get("enabled") === "true";
+  const useGlobalShell = fd.get("useGlobalShell") === "true";
 
   if (intent === "save") {
     await prisma.emailTemplate.upsert({
       where: { shop_type: { shop, type } },
-      update: { subject, htmlBody, enabled },
-      create: { shop, type, subject, htmlBody, enabled },
+      update: { subject, htmlBody, enabled, useGlobalShell },
+      create: { shop, type, subject, htmlBody, enabled, useGlobalShell },
     });
     return { ok: true, message: "已保存" };
   }
@@ -80,8 +86,15 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   if (intent === "test") {
     const to = String(fd.get("testEmail") ?? "");
     const settings = await getSettings(shop);
+    const fullBody = useGlobalShell
+      ? composeEmail(
+          settings.emailHeader || DEFAULT_HEADER,
+          htmlBody,
+          settings.emailFooter || DEFAULT_FOOTER,
+        )
+      : htmlBody;
     const { subject: s, html } = renderTemplate(
-      { subject, htmlBody },
+      { subject, htmlBody: fullBody },
       {
         ...SAMPLE_VARS,
         customer_email: to,
@@ -146,13 +159,13 @@ function renderClient(tpl: string, vars: Record<string, string>) {
 }
 
 export default function Templates() {
-  const { templates, brand } = useLoaderData<typeof loader>();
+  const { templates, brand, globalHeader, globalFooter } = useLoaderData<typeof loader>();
   const fetcher = useFetcher<typeof action>();
   const shopify = useAppBridge();
   const [tab, setTab] = useState(0);
   const [drafts, setDrafts] = useState(() =>
     Object.fromEntries(
-      templates.map((t) => [t.type, { subject: t.subject, htmlBody: t.htmlBody, enabled: t.enabled }]),
+      templates.map((t) => [t.type, { subject: t.subject, htmlBody: t.htmlBody, enabled: t.enabled, useGlobalShell: t.useGlobalShell }]),
     ),
   );
   const [testEmail, setTestEmail] = useState("");
@@ -170,7 +183,7 @@ export default function Templates() {
     if (reset) {
       setDrafts((prev) => ({
         ...prev,
-        [reset.type]: { subject: reset.subject, htmlBody: reset.htmlBody, enabled: true },
+        [reset.type]: { subject: reset.subject, htmlBody: reset.htmlBody, enabled: true, useGlobalShell: true },
       }));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -178,13 +191,16 @@ export default function Templates() {
 
   const submit = (intent: "save" | "test" | "reset") =>
     fetcher.submit(
-      { intent, type: current.type, subject: d.subject, htmlBody: d.htmlBody, enabled: String(d.enabled), testEmail },
+      { intent, type: current.type, subject: d.subject, htmlBody: d.htmlBody, enabled: String(d.enabled), useGlobalShell: String(d.useGlobalShell), testEmail },
       { method: "POST" },
     );
 
-  // 预览：样例产品 + 真实品牌设置
+  // 预览：样例产品 + 真实品牌设置；勾选全局外壳时把正文包进页眉/页脚
   const previewVars = { ...SAMPLE_VARS, ...brand };
-  const previewHtml = renderClient(d.htmlBody, previewVars);
+  const wrapped = d.useGlobalShell
+    ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:24px 12px;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;"><tr><td align="center"><table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;border:1px solid #eaeaea;">${globalHeader}${d.htmlBody}${globalFooter}</table></td></tr></table>`
+    : d.htmlBody;
+  const previewHtml = renderClient(wrapped, previewVars);
   const previewSubject = renderClient(d.subject, previewVars);
 
   return (
@@ -225,6 +241,14 @@ export default function Templates() {
                     </Button>
                   </InlineStack>
                   <Checkbox label="启用此邮件" checked={d.enabled} onChange={(v) => setDraft({ enabled: v })} />
+                  <Checkbox
+                    label="使用全局页眉/页脚"
+                    checked={d.useGlobalShell}
+                    onChange={(v) => setDraft({ useGlobalShell: v })}
+                    helpText={d.useGlobalShell
+                      ? "下面只写正文，顶部 logo 与底部公司信息由「页眉页脚」页统一提供。"
+                      : "不使用全局外壳，下面需写完整邮件（含页眉/页脚）。"}
+                  />
                   <TextField
                     label="邮件主题"
                     value={d.subject}
@@ -232,7 +256,7 @@ export default function Templates() {
                     autoComplete="off"
                   />
                   <TextField
-                    label="邮件正文（HTML）"
+                    label={d.useGlobalShell ? "邮件正文（HTML，仅中间内容）" : "邮件正文（HTML，完整邮件）"}
                     value={d.htmlBody}
                     onChange={(v) => setDraft({ htmlBody: v })}
                     multiline={16}

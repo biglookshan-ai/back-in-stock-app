@@ -3,13 +3,14 @@ import { useState, useEffect } from "react";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { useLoaderData, useFetcher } from "@remix-run/react";
 import {
-  Page, Card, TextField, Button, BlockStack, InlineStack, Text, Box,
+  Page, Card, TextField, Checkbox, Button, BlockStack, InlineStack, Text, Box,
   InlineGrid, Banner, ResourceList, ResourceItem,
 } from "@shopify/polaris";
 import { TitleBar, useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { getSettings } from "../models/subscription.server";
+import { DEFAULT_HEADER, DEFAULT_FOOTER } from "../email-templates.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -18,7 +19,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     getSettings(session.shop),
   ]);
   return {
-    templates: templates.map((t) => ({ id: t.id, name: t.name, subject: t.subject, htmlBody: t.htmlBody })),
+    templates: templates.map((t) => ({ id: t.id, name: t.name, subject: t.subject, htmlBody: t.htmlBody, useGlobalShell: t.useGlobalShell })),
+    globalHeader: settings.emailHeader || DEFAULT_HEADER,
+    globalFooter: settings.emailFooter || DEFAULT_FOOTER,
     brand: {
       shop_name: settings.fromName, brand_logo: settings.logoUrl, brand_color: settings.brandColor,
       website_url: settings.websiteUrl, company_address: settings.companyAddress, support_email: settings.supportEmail,
@@ -37,12 +40,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const name = String(fd.get("name") ?? "").trim() || "未命名模板";
   const subject = String(fd.get("subject") ?? "");
   const htmlBody = String(fd.get("htmlBody") ?? "");
+  const useGlobalShell = fd.get("useGlobalShell") !== "false";
   const id = String(fd.get("id") ?? "");
   if (id) {
-    await prisma.customTemplate.updateMany({ where: { id, shop: session.shop }, data: { name, subject, htmlBody } });
+    await prisma.customTemplate.updateMany({ where: { id, shop: session.shop }, data: { name, subject, htmlBody, useGlobalShell } });
     return { ok: true, message: "已保存", savedId: id };
   }
-  const created = await prisma.customTemplate.create({ data: { shop: session.shop, name, subject, htmlBody } });
+  const created = await prisma.customTemplate.create({ data: { shop: session.shop, name, subject, htmlBody, useGlobalShell } });
   return { ok: true, message: "已创建", savedId: created.id };
 };
 
@@ -58,19 +62,22 @@ function renderClient(tpl: string, vars: Record<string, string>) {
   return out.replace(/\{\{\s*(\w+)\s*\}\}/g, (_m, k) => (k in vars ? String(vars[k]) : ""));
 }
 
-const DEFAULT_BODY = `<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;padding:24px">
-  {{#if brand_logo}}<img src="{{brand_logo}}" alt="{{shop_name}}" height="32" style="height:32px"><br><br>{{/if}}
-  <h2 style="color:{{brand_color}}">Hi {{customer_name}},</h2>
-  <p>关于 <strong>{{product_title}}</strong>（{{variant_title}}）—— 在这里写你要手动通知的内容，比如预计 3 周到货，是否仍需要？</p>
-  <p><a href="{{product_url}}" style="display:inline-block;background:{{brand_color}};color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none">查看商品</a></p>
-  <p style="color:#888;font-size:12px">— {{shop_name}}</p>
-  <p style="color:#bbb;font-size:11px"><a href="{{unsubscribe_url}}">Unsubscribe</a></p>
-</div>`;
+// 默认正文（中间内容；页眉/页脚由全局外壳提供）
+const DEFAULT_BODY = `<tr><td style="padding:28px 32px;font-family:Arial,sans-serif">
+  <h2 style="color:{{brand_color}};margin:0 0 12px">Hi {{customer_name}},</h2>
+  <p style="font-size:15px;color:#444;line-height:1.6">关于 <strong>{{product_title}}</strong>（{{variant_title}}）—— 在这里写你要手动通知的内容，比如预计 3 周到货，是否仍需要？</p>
+  <p style="margin-top:16px"><a href="{{product_url}}" style="display:inline-block;background:{{brand_color}};color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none">查看商品</a></p>
+</td></tr>`;
 
-type Tpl = { id: string; name: string; subject: string; htmlBody: string };
+// 与服务端 composeEmail 一致的外壳（预览用）
+function wrapShell(header: string, body: string, footer: string) {
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:24px 12px;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;"><tr><td align="center"><table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;border:1px solid #eaeaea;">${header}${body}${footer}</table></td></tr></table>`;
+}
+
+type Tpl = { id: string; name: string; subject: string; htmlBody: string; useGlobalShell: boolean };
 
 export default function CustomTemplates() {
-  const { templates, brand } = useLoaderData<typeof loader>();
+  const { templates, brand, globalHeader, globalFooter } = useLoaderData<typeof loader>();
   const fetcher = useFetcher<typeof action>();
   const shopify = useAppBridge();
 
@@ -86,9 +93,9 @@ export default function CustomTemplates() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetcher.state, fetcher.data]);
 
-  const newTpl = () => setSel({ id: "", name: "", subject: "", htmlBody: DEFAULT_BODY });
+  const newTpl = () => setSel({ id: "", name: "", subject: "", htmlBody: DEFAULT_BODY, useGlobalShell: true });
   const save = () =>
-    sel && fetcher.submit({ intent: "save", id: sel.id, name: sel.name, subject: sel.subject, htmlBody: sel.htmlBody }, { method: "POST" });
+    sel && fetcher.submit({ intent: "save", id: sel.id, name: sel.name, subject: sel.subject, htmlBody: sel.htmlBody, useGlobalShell: String(sel.useGlobalShell) }, { method: "POST" });
   const del = () => sel?.id && fetcher.submit({ intent: "delete", id: sel.id }, { method: "POST" });
 
   const previewVars = { ...SAMPLE, ...brand } as Record<string, string>;
@@ -131,10 +138,19 @@ export default function CustomTemplates() {
               <BlockStack gap="400">
                 <Text as="h3" variant="headingMd">{isNew ? "新建模板" : "编辑模板"}</Text>
                 <TextField label="模板名称" value={sel.name} onChange={(v) => setSel({ ...sel, name: v })} autoComplete="off" />
+                <Checkbox
+                  label="使用全局页眉/页脚"
+                  checked={sel.useGlobalShell}
+                  onChange={(v) => setSel({ ...sel, useGlobalShell: v })}
+                  helpText={sel.useGlobalShell
+                    ? "下面只写正文，页眉页脚由「页眉页脚」页统一提供。"
+                    : "不使用全局外壳，下面需写完整邮件。"}
+                />
                 <TextField label="邮件主题" value={sel.subject} onChange={(v) => setSel({ ...sel, subject: v })} autoComplete="off" />
-                <TextField label="正文(HTML)" value={sel.htmlBody} onChange={(v) => setSel({ ...sel, htmlBody: v })} multiline={10} autoComplete="off" />
+                <TextField label={sel.useGlobalShell ? "正文(HTML，仅中间内容)" : "正文(HTML，完整邮件)"} value={sel.htmlBody} onChange={(v) => setSel({ ...sel, htmlBody: v })} multiline={10} autoComplete="off" />
                 <Box borderRadius="200" borderWidth="025" borderColor="border">
-                  <iframe title="preview" srcDoc={renderClient(sel.htmlBody, previewVars)}
+                  <iframe title="preview"
+                    srcDoc={renderClient(sel.useGlobalShell ? wrapShell(globalHeader, sel.htmlBody, globalFooter) : sel.htmlBody, previewVars)}
                     style={{ width: "100%", height: 360, border: "none", display: "block" }} />
                 </Box>
                 <InlineStack gap="300">

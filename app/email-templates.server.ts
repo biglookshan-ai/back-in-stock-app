@@ -56,44 +56,51 @@ const FOOTER = `
     </div>
   </td></tr>`;
 
-function shell(bodyRows: string) {
-  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:24px 12px;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-  <tr><td align="center">
-    <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;border:1px solid #eaeaea;">
-      ${HEADER}
-      ${bodyRows}
-      ${FOOTER}
-    </table>
-  </td></tr>
-</table>`;
-}
-
 function button(label: string) {
   return `<tr><td style="padding:8px 32px 24px;">
     <a href="{{product_url}}" style="display:inline-block;background:{{brand_color}};color:#ffffff;padding:13px 28px;border-radius:8px;text-decoration:none;font-size:15px;font-weight:600;">${label}</a>
   </td></tr>`;
 }
 
+// ── 全局页眉/页脚的内置默认（设置里为空时用这个）──────────────────
+export const DEFAULT_HEADER = HEADER;
+export const DEFAULT_FOOTER = FOOTER;
+export const CUSTOMER_PRODUCT_CARD = PRODUCT_CARD; // 「插入客人产品卡」用
+
+// 外壳：把 页眉+正文+页脚 包进邮件外层表格
+export function composeEmail(header: string, body: string, footer: string) {
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:24px 12px;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+  <tr><td align="center">
+    <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;border:1px solid #eaeaea;">
+      ${header}
+      ${body}
+      ${footer}
+    </table>
+  </td></tr>
+</table>`;
+}
+
+// 默认模板「正文」——只含中间内容（页眉/页脚由全局提供，useGlobalShell=true）
 const DEFAULTS: Record<TemplateType, { subject: string; htmlBody: string }> = {
   CONFIRMATION: {
     subject: "You're on the list — {{product_title}}",
-    htmlBody: shell(`
+    htmlBody: `
   <tr><td style="padding:28px 32px 8px;">
     <div style="font-size:22px;font-weight:700;color:#1a1a1a;">Thanks{{#if customer_name}}, {{customer_name}}{{/if}}!</div>
     <div style="font-size:15px;color:#555;line-height:1.6;margin-top:8px;">We'll email you the moment this item is back in stock.</div>
   </td></tr>
   ${PRODUCT_CARD}
-  <tr><td style="padding:14px 32px 24px;font-size:13px;color:#999;">A confirmation that <strong>{{customer_email}}</strong> is subscribed.</td></tr>`),
+  <tr><td style="padding:14px 32px 24px;font-size:13px;color:#999;">A confirmation that <strong>{{customer_email}}</strong> is subscribed.</td></tr>`,
   },
   BACK_IN_STOCK: {
     subject: "Back in stock: {{product_title}}",
-    htmlBody: shell(`
+    htmlBody: `
   <tr><td style="padding:28px 32px 8px;">
     <div style="font-size:22px;font-weight:700;color:#1a1a1a;">It's back in stock 🎉</div>
     <div style="font-size:15px;color:#555;line-height:1.6;margin-top:8px;">The item you wanted is available again. Stock can be limited — grab it before it's gone.</div>
   </td></tr>
   ${PRODUCT_CARD}
-  ${button("Shop now")}`),
+  ${button("Shop now")}`,
   },
 };
 
@@ -128,7 +135,7 @@ export async function getTemplate(shop: string, type: TemplateType) {
   });
   if (existing) return existing;
   return prisma.emailTemplate.create({
-    data: { shop, type, ...DEFAULTS[type], enabled: true },
+    data: { shop, type, ...DEFAULTS[type], enabled: true, useGlobalShell: true },
   });
 }
 

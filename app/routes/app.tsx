@@ -30,6 +30,7 @@ export default function App() {
         <Link to="/app/requests">请求列表</Link>
         <Link to="/app/templates">邮件模板</Link>
         <Link to="/app/custom-templates">自定义模板</Link>
+        <Link to="/app/email-shell">页眉页脚</Link>
         <Link to="/app/settings">设置</Link>
       </NavMenu>
       <Outlet />
