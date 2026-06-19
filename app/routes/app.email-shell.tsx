@@ -55,7 +55,7 @@ function wrapShell(header: string, body: string, footer: string) {
   return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:24px 12px;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
   <tr><td align="center">
     <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;border:1px solid #eaeaea;">
-      ${header}<tr><td style="padding:0">${body}</td></tr>${footer}
+      ${header}<tr><td style="padding:24px 32px">${body}</td></tr>${footer}
     </table>
   </td></tr>
 </table>`;
@@ -63,10 +63,8 @@ function wrapShell(header: string, body: string, footer: string) {
 
 // 预览中段（代表模板正文的位置）
 const SAMPLE_BODY = `
-  <div style="padding:28px 32px 8px;">
-    <div style="font-size:22px;font-weight:700;color:#1a1a1a;">这里是模板正文</div>
-    <div style="font-size:15px;color:#555;line-height:1.6;margin-top:8px;">页眉在上、页脚在下，由本页统一控制。各模板只需写中间这段内容。</div>
-  </div>`;
+  <div style="font-size:22px;font-weight:700;color:#1a1a1a;">这里是模板正文</div>
+  <div style="font-size:15px;color:#555;line-height:1.6;margin-top:8px;">页眉在上、页脚在下，由本页统一控制。各模板只需写中间这段内容。</div>`;
 
 const SAMPLE_VARS = {
   shop_name: "CINEGEARPRO",

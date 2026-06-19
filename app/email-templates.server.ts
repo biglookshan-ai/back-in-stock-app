@@ -29,9 +29,9 @@ const HEADER = `
     {{#unless brand_logo}}<div style="font-size:20px;font-weight:700;letter-spacing:.5px;color:{{brand_color}};">{{shop_name}}</div>{{/unless}}
   </td></tr>`;
 
-// 产品卡：独立 table（可放进任意 <td> 正文单元格，不依赖外层行结构）
+// 产品卡：独立 table（水平内边距由正文单元格统一提供，这里只留上下间距）
 const PRODUCT_CARD = `
-  <div style="padding:8px 32px 4px;">
+  <div style="margin:16px 0;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #eee;border-radius:10px;overflow:hidden;">
       <tr>
         {{#if product_image}}<td width="120" style="padding:0;"><img src="{{product_image}}" alt="" width="120" style="width:120px;height:120px;object-fit:cover;display:block;border:0;"></td>{{/if}}
@@ -58,7 +58,7 @@ const FOOTER = `
   </td></tr>`;
 
 function button(label: string) {
-  return `<div style="padding:8px 32px 24px;">
+  return `<div style="margin:16px 0 4px;">
     <a href="{{product_url}}" style="display:inline-block;background:{{brand_color}};color:#ffffff;padding:13px 28px;border-radius:8px;text-decoration:none;font-size:15px;font-weight:600;">${label}</a>
   </div>`;
 }
@@ -76,7 +76,7 @@ export function composeEmail(header: string, body: string, footer: string) {
   <tr><td align="center">
     <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;border:1px solid #eaeaea;">
       ${header}
-      <tr><td style="padding:0;">${body}</td></tr>
+      <tr><td style="padding:24px 32px;">${body}</td></tr>
       ${footer}
     </table>
   </td></tr>
@@ -88,20 +88,16 @@ const DEFAULTS: Record<TemplateType, { subject: string; htmlBody: string }> = {
   CONFIRMATION: {
     subject: "You're on the list — {{product_title}}",
     htmlBody: `
-  <div style="padding:28px 32px 8px;">
-    <div style="font-size:22px;font-weight:700;color:#1a1a1a;">Thanks{{#if customer_name}}, {{customer_name}}{{/if}}!</div>
-    <div style="font-size:15px;color:#555;line-height:1.6;margin-top:8px;">We'll email you the moment this item is back in stock.</div>
-  </div>
+  <div style="font-size:22px;font-weight:700;color:#1a1a1a;">Thanks{{#if customer_name}}, {{customer_name}}{{/if}}!</div>
+  <div style="font-size:15px;color:#555;line-height:1.6;margin-top:8px;">We'll email you the moment this item is back in stock.</div>
   ${PRODUCT_CARD}
-  <div style="padding:14px 32px 24px;font-size:13px;color:#999;">A confirmation that <strong>{{customer_email}}</strong> is subscribed.</div>`,
+  <div style="font-size:13px;color:#999;margin-top:8px;">A confirmation that <strong>{{customer_email}}</strong> is subscribed.</div>`,
   },
   BACK_IN_STOCK: {
     subject: "Back in stock: {{product_title}}",
     htmlBody: `
-  <div style="padding:28px 32px 8px;">
-    <div style="font-size:22px;font-weight:700;color:#1a1a1a;">It's back in stock 🎉</div>
-    <div style="font-size:15px;color:#555;line-height:1.6;margin-top:8px;">The item you wanted is available again. Stock can be limited — grab it before it's gone.</div>
-  </div>
+  <div style="font-size:22px;font-weight:700;color:#1a1a1a;">It's back in stock 🎉</div>
+  <div style="font-size:15px;color:#555;line-height:1.6;margin-top:8px;">The item you wanted is available again. Stock can be limited — grab it before it's gone.</div>
   ${PRODUCT_CARD}
   ${button("Shop now")}`,
   },

@@ -198,7 +198,7 @@ export default function Templates() {
   // 预览：样例产品 + 真实品牌设置；勾选全局外壳时把正文包进页眉/页脚
   const previewVars = { ...SAMPLE_VARS, ...brand };
   const wrapped = d.useGlobalShell
-    ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:24px 12px;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;"><tr><td align="center"><table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;border:1px solid #eaeaea;">${globalHeader}<tr><td style="padding:0">${d.htmlBody}</td></tr>${globalFooter}</table></td></tr></table>`
+    ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:24px 12px;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;"><tr><td align="center"><table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;border:1px solid #eaeaea;">${globalHeader}<tr><td style="padding:24px 32px">${d.htmlBody}</td></tr>${globalFooter}</table></td></tr></table>`
     : d.htmlBody;
   const previewHtml = renderClient(wrapped, previewVars);
   const previewSubject = renderClient(d.subject, previewVars);

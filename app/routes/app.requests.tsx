@@ -25,6 +25,7 @@ import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { sendManualEmail, getSettings } from "../models/subscription.server";
 import { DEFAULT_HEADER, DEFAULT_FOOTER } from "../email-templates.server";
+import { productCard, CUSTOMER_CARD } from "../email-cards";
 import { EmailEditor } from "../components/EmailEditor";
 
 // 把 URL/表单的筛选条件构造成 Prisma where（loader 与群发 action 共用）
@@ -68,35 +69,6 @@ const SAMPLE_VARS: Record<string, string> = {
   product_image: "https://placehold.co/240x240/1a1a1a/ffffff?text=Product",
   product_price: "£2,629.95", product_url: "#", unsubscribe_url: "#",
 };
-// 推荐产品卡 HTML（颜色用 {{brand_color}} 变量，发送时按品牌渲染）
-function productCard(p: { title: string; image: string; price: string; url: string }) {
-  return `
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #eee;border-radius:10px;overflow:hidden;margin:12px 0">
-  <tr>
-    ${p.image ? `<td width="120" style="padding:0"><img src="${p.image}" width="120" style="width:120px;height:120px;object-fit:cover;display:block;border:0"></td>` : ""}
-    <td style="padding:14px 16px;vertical-align:top">
-      <div style="font-size:15px;font-weight:700;color:#1a1a1a">${p.title}</div>
-      ${p.price ? `<div style="font-size:14px;font-weight:600;color:{{brand_color}};margin-top:6px">${p.price}</div>` : ""}
-      <a href="${p.url}" style="display:inline-block;margin-top:10px;background:{{brand_color}};color:#fff;padding:8px 18px;border-radius:6px;text-decoration:none;font-size:13px">View product</a>
-    </td>
-  </tr>
-</table>`;
-}
-
-// 客人订阅的产品卡（带变量，发送时每人按自己的订阅渲染）
-const CUSTOMER_CARD = `
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #eee;border-radius:10px;overflow:hidden;margin:12px 0">
-  <tr>
-    {{#if product_image}}<td width="120" style="padding:0"><img src="{{product_image}}" width="120" style="width:120px;height:120px;object-fit:cover;display:block;border:0"></td>{{/if}}
-    <td style="padding:14px 16px;vertical-align:top">
-      <div style="font-size:15px;font-weight:700;color:#1a1a1a">{{product_title}}</div>
-      {{#if variant_title}}<div style="font-size:13px;color:#888;margin-top:4px">{{variant_title}}</div>{{/if}}
-      {{#if product_price}}<div style="font-size:14px;font-weight:600;color:{{brand_color}};margin-top:6px">{{product_price}}</div>{{/if}}
-      <a href="{{product_url}}" style="display:inline-block;margin-top:10px;background:{{brand_color}};color:#fff;padding:8px 18px;border-radius:6px;text-decoration:none;font-size:13px">View product</a>
-    </td>
-  </tr>
-</table>`;
-
 const STATUS_TABS = [
   { id: "", label: "全部" },
   { id: "ACTIVE", label: "等待中" },
@@ -299,7 +271,7 @@ export default function Requests() {
   };
 
   const sendWrapped = sendShell
-    ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:24px 12px;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;"><tr><td align="center"><table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;border:1px solid #eaeaea;">${globalHeader}<tr><td style="padding:0">${sendBody}</td></tr>${globalFooter}</table></td></tr></table>`
+    ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:24px 12px;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;"><tr><td align="center"><table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;border:1px solid #eaeaea;">${globalHeader}<tr><td style="padding:24px 32px">${sendBody}</td></tr>${globalFooter}</table></td></tr></table>`
     : sendBody;
   // 预览用「第一个勾选客人」的真实产品；没勾选则回退到样例
   const firstSel = rows.find((r) => r.id === selectedResources[0]);

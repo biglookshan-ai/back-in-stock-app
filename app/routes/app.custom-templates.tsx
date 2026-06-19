@@ -4,13 +4,15 @@ import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { useLoaderData, useFetcher } from "@remix-run/react";
 import {
   Page, Card, TextField, Checkbox, Button, BlockStack, InlineStack, Text, Box,
-  InlineGrid, Banner, ResourceList, ResourceItem,
+  InlineGrid, Banner, ResourceList, ResourceItem, Modal,
 } from "@shopify/polaris";
 import { TitleBar, useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { getSettings } from "../models/subscription.server";
 import { DEFAULT_HEADER, DEFAULT_FOOTER } from "../email-templates.server";
+import { productCard, CUSTOMER_CARD } from "../email-cards";
+import { EmailEditor } from "../components/EmailEditor";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -19,6 +21,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     getSettings(session.shop),
   ]);
   return {
+    shop: session.shop,
     templates: templates.map((t) => ({ id: t.id, name: t.name, subject: t.subject, htmlBody: t.htmlBody, useGlobalShell: t.useGlobalShell })),
     globalHeader: settings.emailHeader || DEFAULT_HEADER,
     globalFooter: settings.emailFooter || DEFAULT_FOOTER,
@@ -62,8 +65,8 @@ function renderClient(tpl: string, vars: Record<string, string>) {
   return out.replace(/\{\{\s*(\w+)\s*\}\}/g, (_m, k) => (k in vars ? String(vars[k]) : ""));
 }
 
-// 默认正文（中间内容；页眉/页脚由全局外壳提供）
-const DEFAULT_BODY = `<div style="padding:28px 32px;font-family:Arial,sans-serif">
+// 默认正文（中间内容；页眉/页脚 + 外边距由全局外壳提供）
+const DEFAULT_BODY = `<div style="font-family:Arial,sans-serif">
   <h2 style="color:{{brand_color}};margin:0 0 12px">Hi {{customer_name}},</h2>
   <p style="font-size:15px;color:#444;line-height:1.6">关于 <strong>{{product_title}}</strong>（{{variant_title}}）—— 在这里写你要手动通知的内容，比如预计 3 周到货，是否仍需要？</p>
   <p style="margin-top:16px"><a href="{{product_url}}" style="display:inline-block;background:{{brand_color}};color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none">查看商品</a></p>
@@ -71,18 +74,31 @@ const DEFAULT_BODY = `<div style="padding:28px 32px;font-family:Arial,sans-serif
 
 // 与服务端 composeEmail 一致的外壳（预览用）
 function wrapShell(header: string, body: string, footer: string) {
-  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:24px 12px;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;"><tr><td align="center"><table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;border:1px solid #eaeaea;">${header}<tr><td style="padding:0">${body}</td></tr>${footer}</table></td></tr></table>`;
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:24px 12px;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;"><tr><td align="center"><table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;border:1px solid #eaeaea;">${header}<tr><td style="padding:24px 32px">${body}</td></tr>${footer}</table></td></tr></table>`;
 }
 
 type Tpl = { id: string; name: string; subject: string; htmlBody: string; useGlobalShell: boolean };
 
 export default function CustomTemplates() {
-  const { templates, brand, globalHeader, globalFooter } = useLoaderData<typeof loader>();
+  const { shop, templates, brand, globalHeader, globalFooter } = useLoaderData<typeof loader>();
   const fetcher = useFetcher<typeof action>();
   const shopify = useAppBridge();
 
   const [sel, setSel] = useState<Tpl | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
   const isNew = sel !== null && !sel.id;
+
+  // 选产品 → 小卡片（含展示用 label/thumb），编辑器光标处插入
+  const pickProductCards = async () => {
+    const picked = await shopify.resourcePicker({ type: "product", multiple: true });
+    if (!picked || picked.length === 0) return [];
+    return (picked as any[]).map((p) => {
+      const img = p.images?.[0]?.originalSrc || p.images?.[0]?.url || p.featuredImage?.url || "";
+      const price = p.variants?.[0]?.price ? String(p.variants[0].price) : "";
+      const url = p.handle ? `https://${shop}/products/${p.handle}` : "#";
+      return { html: productCard({ title: p.title, image: img, price, url }), label: p.title as string, thumb: img };
+    });
+  };
 
   useEffect(() => {
     if (fetcher.state !== "idle" || !fetcher.data) return;
@@ -147,14 +163,22 @@ export default function CustomTemplates() {
                     : "不使用全局外壳，下面需写完整邮件。"}
                 />
                 <TextField label="邮件主题" value={sel.subject} onChange={(v) => setSel({ ...sel, subject: v })} autoComplete="off" />
-                <TextField label={sel.useGlobalShell ? "正文(HTML，仅中间内容)" : "正文(HTML，完整邮件)"} value={sel.htmlBody} onChange={(v) => setSel({ ...sel, htmlBody: v })} multiline={10} autoComplete="off" />
-                <Box borderRadius="200" borderWidth="025" borderColor="border">
-                  <iframe title="preview"
-                    srcDoc={renderClient(sel.useGlobalShell ? wrapShell(globalHeader, sel.htmlBody, globalFooter) : sel.htmlBody, previewVars)}
-                    style={{ width: "100%", height: 360, border: "none", display: "block" }} />
+                <Box>
+                  <Text as="span" variant="bodyMd" fontWeight="medium">
+                    {sel.useGlobalShell ? "正文（仅中间内容）" : "正文（完整邮件）"}
+                  </Text>
+                  <Box paddingBlockStart="200">
+                    <EmailEditor
+                      value={sel.htmlBody}
+                      onChange={(v) => setSel({ ...sel, htmlBody: v })}
+                      onPickProducts={pickProductCards}
+                      customerCard={{ html: CUSTOMER_CARD, label: "客人订阅的产品（每人各自显示）" }}
+                    />
+                  </Box>
                 </Box>
                 <InlineStack gap="300">
                   <Button variant="primary" loading={fetcher.state !== "idle"} onClick={save}>保存</Button>
+                  <Button onClick={() => setPreviewOpen(true)} disabled={!sel.htmlBody}>预览</Button>
                   {!isNew && <Button tone="critical" onClick={del}>删除</Button>}
                 </InlineStack>
               </BlockStack>
@@ -166,6 +190,24 @@ export default function CustomTemplates() {
           )}
         </InlineGrid>
       </Box>
+
+      <Modal
+        open={previewOpen}
+        onClose={() => setPreviewOpen(false)}
+        title="邮件预览"
+        primaryAction={{ content: "关闭", onAction: () => setPreviewOpen(false) }}
+      >
+        <Modal.Section>
+          <Box borderRadius="200" borderWidth="025" borderColor="border">
+            <iframe title="preview"
+              srcDoc={renderClient(
+                sel?.useGlobalShell ? wrapShell(globalHeader, sel?.htmlBody ?? "", globalFooter) : (sel?.htmlBody ?? ""),
+                previewVars,
+              )}
+              style={{ width: "100%", height: 480, border: "none", display: "block" }} />
+          </Box>
+        </Modal.Section>
+      </Modal>
     </Page>
   );
 }
