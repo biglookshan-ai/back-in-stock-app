@@ -422,11 +422,11 @@ export default function Requests() {
               {rows.map((r, i) => (
                 <IndexTable.Row id={r.id} key={r.id} position={i} selected={selectedResources.includes(r.id)}>
                   <IndexTable.Cell>
-                    <div style={{ width: 220 }}>
-                      <div title={r.productTitle} style={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                    <div style={{ width: 220, minWidth: 0 }}>
+                      <div title={r.productTitle} style={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", whiteSpace: "normal", wordBreak: "break-word", minWidth: 0 }}>
                         <Text as="span" variant="bodyMd">{r.productTitle}</Text>
                       </div>
-                      <div title={r.variantTitle} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      <div title={r.variantTitle} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>
                         <Text as="span" variant="bodySm" tone="subdued">{r.variantTitle}</Text>
                       </div>
                       {r.tags ? (
