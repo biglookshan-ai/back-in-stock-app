@@ -45,10 +45,10 @@ function buildWhere(shop: string, sp: URLSearchParams): any {
     ...(marketing === "yes" ? { marketingConsent: true } : marketing === "no" ? { marketingConsent: false } : {}),
     ...(tag ? { tags: { contains: tag } } : {}),
     ...(q ? { OR: [
-      { email: { contains: q } },
-      { productTitle: { contains: q } },
-      { customerName: { contains: q } },
-      { barcode: { contains: q } },
+      { email: { contains: q, mode: "insensitive" } },
+      { productTitle: { contains: q, mode: "insensitive" } },
+      { customerName: { contains: q, mode: "insensitive" } },
+      { barcode: { contains: q, mode: "insensitive" } },
     ] } : {}),
   };
   if (from || to) {

@@ -34,9 +34,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const qFilter = q
     ? {
         OR: [
-          { productTitle: { contains: q } },
-          { variantTitle: { contains: q } },
-          { barcode: { contains: q } },
+          { productTitle: { contains: q, mode: "insensitive" as const } },
+          { variantTitle: { contains: q, mode: "insensitive" as const } },
+          { barcode: { contains: q, mode: "insensitive" as const } },
         ],
       }
     : {};
@@ -79,7 +79,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const [totals, actives] = await Promise.all([
       prisma.subscription.groupBy({
         by: ["productId", "productTitle"],
-        where: { shop, ...(q ? { productTitle: { contains: q } } : {}) },
+        where: { shop, ...(q ? { productTitle: { contains: q, mode: "insensitive" as const } } : {}) },
         _count: { _all: true },
         _max: { createdAt: true },
       }),
