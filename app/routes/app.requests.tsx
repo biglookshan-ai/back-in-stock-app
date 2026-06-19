@@ -23,6 +23,7 @@ import { TitleBar, useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { sendManualEmail, getSettings } from "../models/subscription.server";
+import { EmailEditor } from "../components/EmailEditor";
 
 // 把 URL/表单的筛选条件构造成 Prisma where（loader 与群发 action 共用）
 function buildWhere(shop: string, sp: URLSearchParams): any {
@@ -228,6 +229,7 @@ export default function Requests() {
   const [sendTplId, setSendTplId] = useState("");
   const [sendSubject, setSendSubject] = useState("");
   const [sendBody, setSendBody] = useState("");
+  const [previewMode, setPreviewMode] = useState(false);
 
   useEffect(() => {
     if (fetcher.state !== "idle" || !fetcher.data) return;
@@ -261,19 +263,16 @@ export default function Requests() {
       { method: "POST" },
     );
 
-  // 插入推荐产品卡：选产品 → 追加产品卡 HTML 到正文
-  const insertProductCards = async () => {
+  // 选产品 → 生成产品卡 HTML 数组（编辑器在光标处插入）
+  const pickProductCards = async (): Promise<string[]> => {
     const picked = await shopify.resourcePicker({ type: "product", multiple: true });
-    if (!picked || picked.length === 0) return;
-    const cards = (picked as any[])
-      .map((p) => {
-        const img = p.images?.[0]?.originalSrc || p.images?.[0]?.url || p.featuredImage?.url || "";
-        const price = p.variants?.[0]?.price ? String(p.variants[0].price) : "";
-        const url = p.handle ? `https://${shop}/products/${p.handle}` : "#";
-        return productCard({ title: p.title, image: img, price, url });
-      })
-      .join("");
-    setSendBody((b) => b + cards);
+    if (!picked || picked.length === 0) return [];
+    return (picked as any[]).map((p) => {
+      const img = p.images?.[0]?.originalSrc || p.images?.[0]?.url || p.featuredImage?.url || "";
+      const price = p.variants?.[0]?.price ? String(p.variants[0].price) : "";
+      const url = p.handle ? `https://${shop}/products/${p.handle}` : "#";
+      return productCard({ title: p.title, image: img, price, url });
+    });
   };
 
   const sendPreview = renderClient(sendBody, { ...SAMPLE_VARS, ...brand });
@@ -436,49 +435,55 @@ export default function Requests() {
         </Modal.Section>
       </Modal>
 
-      {/* 群发邮件：发给当前筛选结果 */}
+      {/* 发送邮件：发给勾选的人 */}
       <Modal
         open={sendOpen}
-        onClose={() => setSendOpen(false)}
-        title={`发送邮件（已选 ${selectedResources.length} 人）`}
-        primaryAction={{
-          content: `发送给 ${selectedResources.length} 人`,
-          onAction: doSend,
-          loading: fetcher.state !== "idle",
-          disabled: !sendSubject || !sendBody || selectedResources.length === 0,
-        }}
-        secondaryActions={[{ content: "取消", onAction: () => setSendOpen(false) }]}
+        onClose={() => { setSendOpen(false); setPreviewMode(false); }}
+        title={previewMode ? "邮件预览" : `发送邮件（已选 ${selectedResources.length} 人）`}
+        primaryAction={
+          previewMode
+            ? { content: "← 返回编辑", onAction: () => setPreviewMode(false) }
+            : {
+                content: `发送给 ${selectedResources.length} 人`,
+                onAction: doSend,
+                loading: fetcher.state !== "idle",
+                disabled: !sendSubject || !sendBody || selectedResources.length === 0,
+              }
+        }
+        secondaryActions={
+          previewMode
+            ? [{ content: "发送", onAction: doSend, disabled: !sendSubject || !sendBody || selectedResources.length === 0 }]
+            : [{ content: "预览", onAction: () => setPreviewMode(true), disabled: !sendBody }, { content: "取消", onAction: () => setSendOpen(false) }]
+        }
       >
         <Modal.Section>
-          <BlockStack gap="300">
-            <Text as="p" tone="subdued" variant="bodySm">
-              发送给<b>勾选</b>的客人。列表里勾选单个或多个(表头可全选),再点「发送邮件」。
-            </Text>
-            <Select
-              label="选择模板（可选）"
-              options={[
-                { label: "— 空白 / 自己写 —", value: "" },
-                ...customTemplates.map((t) => ({ label: t.name, value: t.id })),
-              ]}
-              value={sendTplId}
-              onChange={pickSendTpl}
-              helpText="模板在「自定义邮件模板」页管理。选了可继续编辑。"
-            />
-            <TextField label="主题" value={sendSubject} onChange={setSendSubject} autoComplete="off" />
-            <InlineStack align="space-between" blockAlign="center">
-              <Text as="span" variant="bodyMd" fontWeight="medium">正文（HTML，支持变量）</Text>
-              <Button onClick={insertProductCards}>插入产品卡（推荐其它产品）</Button>
-            </InlineStack>
-            <TextField label="正文" labelHidden value={sendBody} onChange={setSendBody} multiline={8} autoComplete="off" />
-            <Text as="p" tone="subdued" variant="bodySm">
-              变量:{"{{customer_name}} {{product_title}} {{product_image}} {{product_price}} {{product_url}} {{unsubscribe_url}}"}（每人按自己订阅的商品渲染）。「插入产品卡」会追加你选的推荐产品(图+价+链接)。
-            </Text>
-            <Text as="span" variant="bodyMd" fontWeight="medium">实时预览</Text>
+          {previewMode ? (
             <Box borderRadius="200" borderWidth="025" borderColor="border">
               <iframe title="send-preview" srcDoc={sendPreview}
-                style={{ width: "100%", height: 320, border: "none", display: "block" }} />
+                style={{ width: "100%", height: 480, border: "none", display: "block" }} />
             </Box>
-          </BlockStack>
+          ) : (
+            <BlockStack gap="300">
+              <Text as="p" tone="subdued" variant="bodySm">
+                发送给<b>勾选</b>的客人。富文本/代码可切换;「插入产品卡」插到光标处;「预览」看效果。
+              </Text>
+              <Select
+                label="选择模板（可选）"
+                options={[
+                  { label: "— 空白 / 自己写 —", value: "" },
+                  ...customTemplates.map((t) => ({ label: t.name, value: t.id })),
+                ]}
+                value={sendTplId}
+                onChange={pickSendTpl}
+                helpText="模板在「自定义邮件模板」页管理。选了可继续编辑。"
+              />
+              <TextField label="主题" value={sendSubject} onChange={setSendSubject} autoComplete="off" />
+              <EmailEditor value={sendBody} onChange={setSendBody} onPickProducts={pickProductCards} />
+              <Text as="p" tone="subdued" variant="bodySm">
+                变量:{"{{customer_name}} {{product_title}} {{product_image}} {{product_price}} {{product_url}} {{unsubscribe_url}}"}（每人按自己订阅的商品渲染）。
+              </Text>
+            </BlockStack>
+          )}
         </Modal.Section>
       </Modal>
     </Page>
