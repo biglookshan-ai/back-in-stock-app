@@ -17,6 +17,7 @@ import {
   Text,
   Modal,
   EmptyState,
+  useIndexResourceState,
 } from "@shopify/polaris";
 import { TitleBar, useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
@@ -130,17 +131,16 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const fd = await request.formData();
   const intent = String(fd.get("intent"));
 
-  // 群发：对当前筛选结果发自定义邮件
+  // 发送邮件：发给选中的订阅行
   if (intent === "sendmail") {
     const subject = String(fd.get("subject") ?? "").trim();
     const htmlBody = String(fd.get("htmlBody") ?? "").trim();
     if (!subject || !htmlBody) return { ok: false, message: "主题和正文不能为空" };
-    const sp = new URLSearchParams();
-    ["status", "q", "marketing", "tag", "from", "to"].forEach((k) => {
-      const v = fd.get(k);
-      if (v) sp.set(k, String(v));
+    const ids = String(fd.get("ids") ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+    if (ids.length === 0) return { ok: false, message: "请先勾选收件人" };
+    const subs = await prisma.subscription.findMany({
+      where: { shop: session.shop, id: { in: ids } },
     });
-    const subs = await prisma.subscription.findMany({ where: buildWhere(session.shop, sp) });
     const sent = await sendManualEmail(subs, subject, htmlBody);
     return { ok: true, message: `已发送 ${sent} 封` };
   }
@@ -181,7 +181,11 @@ export default function Requests() {
   const [tagEditId, setTagEditId] = useState<string | null>(null);
   const [tagDraft, setTagDraft] = useState("");
 
-  // 群发邮件 modal
+  // 行选择
+  const { selectedResources, allResourcesSelected, handleSelectionChange } =
+    useIndexResourceState(rows as unknown as { [key: string]: unknown; id: string }[]);
+
+  // 发送邮件 modal
   const [sendOpen, setSendOpen] = useState(false);
   const [sendTplId, setSendTplId] = useState("");
   const [sendSubject, setSendSubject] = useState("");
@@ -205,10 +209,7 @@ export default function Requests() {
   };
   const doSend = () =>
     fetcher.submit(
-      {
-        intent: "sendmail", subject: sendSubject, htmlBody: sendBody,
-        status, q, marketing: get("marketing"), tag: get("tag"), from: get("from"), to: get("to"),
-      },
+      { intent: "sendmail", subject: sendSubject, htmlBody: sendBody, ids: selectedResources.join(",") },
       { method: "POST" },
     );
 
@@ -245,7 +246,6 @@ export default function Requests() {
                   value={q} onChange={(v) => setParam("q", v)} autoComplete="off" />
               </Box>
               <InlineStack gap="200">
-                <Button onClick={() => setSendOpen(true)}>发送邮件</Button>
                 <Form method="get" reloadDocument>
                   {status && <input type="hidden" name="status" value={status} />}
                   {filterFields}
@@ -294,14 +294,16 @@ export default function Requests() {
           ) : (
             <IndexTable
               itemCount={rows.length}
-              selectable={false}
+              selectedItemsCount={allResourcesSelected ? "All" : selectedResources.length}
+              onSelectionChange={handleSelectionChange}
+              promotedBulkActions={[{ content: "发送邮件", onAction: () => setSendOpen(true) }]}
               headings={[
                 { title: "商品 / 变体" }, { title: "客户" }, { title: "标签" },
                 { title: "状态" }, { title: "日期" }, { title: "操作" },
               ]}
             >
               {rows.map((r, i) => (
-                <IndexTable.Row id={r.id} key={r.id} position={i}>
+                <IndexTable.Row id={r.id} key={r.id} position={i} selected={selectedResources.includes(r.id)}>
                   <IndexTable.Cell>
                     <Text as="span" variant="bodyMd">{r.productTitle}</Text>
                     <br />
@@ -367,19 +369,19 @@ export default function Requests() {
       <Modal
         open={sendOpen}
         onClose={() => setSendOpen(false)}
-        title={`发送邮件（当前筛选 ${filteredCount} 人）`}
+        title={`发送邮件（已选 ${selectedResources.length} 人）`}
         primaryAction={{
-          content: `发送给 ${filteredCount} 人`,
+          content: `发送给 ${selectedResources.length} 人`,
           onAction: doSend,
           loading: fetcher.state !== "idle",
-          disabled: !sendSubject || !sendBody || filteredCount === 0,
+          disabled: !sendSubject || !sendBody || selectedResources.length === 0,
         }}
         secondaryActions={[{ content: "取消", onAction: () => setSendOpen(false) }]}
       >
         <Modal.Section>
           <BlockStack gap="300">
             <Text as="p" tone="subdued" variant="bodySm">
-              发送给「当前筛选」的所有客人。先用上方的搜索/Newsletter/标签/状态筛选好对象,再发送。
+              发送给<b>勾选</b>的客人。列表里勾选单个或多个(表头可全选),再点「发送邮件」。
             </Text>
             <Select
               label="选择模板（可选）"
