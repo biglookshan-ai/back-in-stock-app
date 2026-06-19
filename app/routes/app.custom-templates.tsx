@@ -63,15 +63,15 @@ function renderClient(tpl: string, vars: Record<string, string>) {
 }
 
 // 默认正文（中间内容；页眉/页脚由全局外壳提供）
-const DEFAULT_BODY = `<tr><td style="padding:28px 32px;font-family:Arial,sans-serif">
+const DEFAULT_BODY = `<div style="padding:28px 32px;font-family:Arial,sans-serif">
   <h2 style="color:{{brand_color}};margin:0 0 12px">Hi {{customer_name}},</h2>
   <p style="font-size:15px;color:#444;line-height:1.6">关于 <strong>{{product_title}}</strong>（{{variant_title}}）—— 在这里写你要手动通知的内容，比如预计 3 周到货，是否仍需要？</p>
   <p style="margin-top:16px"><a href="{{product_url}}" style="display:inline-block;background:{{brand_color}};color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none">查看商品</a></p>
-</td></tr>`;
+</div>`;
 
 // 与服务端 composeEmail 一致的外壳（预览用）
 function wrapShell(header: string, body: string, footer: string) {
-  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:24px 12px;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;"><tr><td align="center"><table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;border:1px solid #eaeaea;">${header}${body}${footer}</table></td></tr></table>`;
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:24px 12px;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;"><tr><td align="center"><table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;border:1px solid #eaeaea;">${header}<tr><td style="padding:0">${body}</td></tr>${footer}</table></td></tr></table>`;
 }
 
 type Tpl = { id: string; name: string; subject: string; htmlBody: string; useGlobalShell: boolean };
