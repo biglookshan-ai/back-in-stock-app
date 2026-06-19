@@ -79,9 +79,22 @@ export function EmailEditor({
         </InlineStack>
       </div>
 
+      <style>{`
+        .bis-rich h1{font-size:26px;font-weight:700;margin:14px 0}
+        .bis-rich h2{font-size:21px;font-weight:700;margin:12px 0}
+        .bis-rich h3{font-size:17px;font-weight:700;margin:10px 0}
+        .bis-rich b,.bis-rich strong{font-weight:700}
+        .bis-rich i,.bis-rich em{font-style:italic}
+        .bis-rich u{text-decoration:underline}
+        .bis-rich a{color:#2c6ecb;text-decoration:underline}
+        .bis-rich ul{padding-left:22px;margin:8px 0;list-style:disc}
+        .bis-rich p{margin:8px 0}
+        .bis-rich img{max-width:100%}
+      `}</style>
       {mode === "rich" ? (
         <div
           ref={richRef}
+          className="bis-rich"
           contentEditable
           onInput={emitRich}
           suppressContentEditableWarning
