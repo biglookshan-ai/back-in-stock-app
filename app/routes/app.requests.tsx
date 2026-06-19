@@ -19,6 +19,10 @@ import {
   Checkbox,
   Popover,
   ActionList,
+  Combobox,
+  Listbox,
+  Tag,
+  Tooltip,
   EmptyState,
   useIndexResourceState,
 } from "@shopify/polaris";
@@ -95,7 +99,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const q = url.searchParams.get("q")?.trim() ?? "";
   const where = buildWhere(shop, url.searchParams);
 
-  const [rows, counts, filteredCount, customTemplates, settings] = await Promise.all([
+  const [rows, counts, filteredCount, customTemplates, settings, tagRows] = await Promise.all([
     prisma.subscription.findMany({ where, orderBy: { createdAt: "desc" }, take: 500 }),
     prisma.subscription.groupBy({ by: ["status"], where: { shop }, _count: { _all: true } }),
     prisma.subscription.count({ where }),
@@ -105,7 +109,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       select: { id: true, name: true, subject: true, htmlBody: true, useGlobalShell: true },
     }),
     getSettings(shop),
+    prisma.subscription.findMany({ where: { shop, tags: { not: "" } }, select: { tags: true } }),
   ]);
+
+  // 已用过的全部标签（去重排序），供编辑/筛选下拉
+  const allTags = Array.from(
+    new Set(tagRows.flatMap((t) => t.tags.split(",").map((s) => s.trim()).filter(Boolean))),
+  ).sort();
 
   const countMap: Record<string, number> = {};
   let nonArchived = 0;
@@ -123,7 +133,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       status: r.status, tags: r.tags, marketing: r.marketingConsent,
       createdAt: r.createdAt.toISOString(),
     })),
-    counts: countMap, status, q, filteredCount, customTemplates,
+    counts: countMap, status, q, filteredCount, customTemplates, allTags,
     shop,
     globalHeader: settings.emailHeader || DEFAULT_HEADER,
     globalFooter: settings.emailFooter || DEFAULT_FOOTER,
@@ -202,10 +212,10 @@ type Row = {
 type CustomTpl = { id: string; name: string; subject: string; htmlBody: string; useGlobalShell: boolean };
 
 export default function Requests() {
-  const { rows, counts, status, q, customTemplates, shop, brand, globalHeader, globalFooter } =
+  const { rows, counts, status, q, customTemplates, allTags, shop, brand, globalHeader, globalFooter } =
     useLoaderData<typeof loader>() as {
       rows: Row[]; counts: Record<string, number>; status: string; q: string;
-      filteredCount: number; customTemplates: CustomTpl[];
+      filteredCount: number; customTemplates: CustomTpl[]; allTags: string[];
       shop: string; brand: Record<string, string>;
       globalHeader: string; globalFooter: string;
     };
@@ -214,7 +224,8 @@ export default function Requests() {
   const shopify = useAppBridge();
 
   const [tagEditId, setTagEditId] = useState<string | null>(null);
-  const [tagDraft, setTagDraft] = useState("");
+  const [tagList, setTagList] = useState<string[]>([]); // 编辑中的标签
+  const [tagInput, setTagInput] = useState(""); // 标签输入/搜索框
   const [menuId, setMenuId] = useState<string | null>(null); // 行操作菜单
 
   // 行选择
@@ -319,8 +330,27 @@ export default function Requests() {
   const act = (intent: string, id: string, extra?: Record<string, string>) =>
     fetcher.submit({ intent, id, ...(extra ?? {}) }, { method: "POST" });
 
-  const openTag = (r: Row) => { setTagEditId(r.id); setTagDraft(r.tags); };
-  const saveTag = () => { if (tagEditId) act("tag", tagEditId, { tags: tagDraft }); setTagEditId(null); };
+  const openTag = (r: Row) => {
+    setTagEditId(r.id);
+    setTagList(r.tags ? r.tags.split(",").map((s) => s.trim()).filter(Boolean) : []);
+    setTagInput("");
+  };
+  const saveTag = () => { if (tagEditId) act("tag", tagEditId, { tags: tagList.join(",") }); setTagEditId(null); };
+  const toggleTag = (t: string) =>
+    setTagList((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]));
+  const addNewTag = () => {
+    const v = tagInput.trim();
+    if (v && !tagList.includes(v)) setTagList([...tagList, v]);
+    setTagInput("");
+  };
+  // 标签下拉候选：已用过、未选中、匹配输入
+  const tagOptions = allTags.filter(
+    (t) => !tagList.includes(t) && t.toLowerCase().includes(tagInput.trim().toLowerCase()),
+  );
+  const canCreateTag =
+    !!tagInput.trim() &&
+    !allTags.some((t) => t.toLowerCase() === tagInput.trim().toLowerCase()) &&
+    !tagList.includes(tagInput.trim());
 
   // 行操作菜单项（随状态变化）
   const rowActions = (r: Row) => {
@@ -354,8 +384,15 @@ export default function Requests() {
                   value={searchInput} onChange={setSearchInput} clearButton onClearButtonClick={() => setSearchInput("")} autoComplete="off" />
               </Box>
               <InlineStack gap="200">
+                <Button
+                  onClick={() => setSendOpen(true)}
+                  disabled={selectedResources.length === 0}
+                  variant="primary"
+                >
+                  {selectedResources.length ? `发送邮件 (${selectedResources.length})` : "发送邮件"}
+                </Button>
                 <Button onClick={() => exportCsv("view")}>导出当前筛选</Button>
-                <Button onClick={() => exportCsv("all")} variant="primary">导出全部</Button>
+                <Button onClick={() => exportCsv("all")}>导出全部</Button>
               </InlineStack>
             </InlineStack>
 
@@ -372,8 +409,9 @@ export default function Requests() {
                     value={get("marketing")} onChange={(v) => setParam("marketing", v)} />
                 </Box>
                 <Box minWidth="160px">
-                  <TextField label="标签" placeholder="按标签筛选"
-                    value={get("tag")} onChange={(v) => setParam("tag", v)} autoComplete="off" />
+                  <Select label="标签" labelInline
+                    options={[{ label: "全部标签", value: "" }, ...allTags.map((t) => ({ label: t, value: t }))]}
+                    value={get("tag")} onChange={(v) => setParam("tag", v)} />
                 </Box>
                 <Box minWidth="150px">
                   <TextField label="从" type="date"
@@ -405,16 +443,23 @@ export default function Requests() {
               {rows.map((r, i) => (
                 <IndexTable.Row id={r.id} key={r.id} position={i} selected={selectedResources.includes(r.id)}>
                   <IndexTable.Cell>
-                    <Text as="span" variant="bodyMd">{r.productTitle}</Text>
-                    <br />
-                    <Text as="span" variant="bodySm" tone="subdued">{r.variantTitle}</Text>
-                    {r.tags ? (
-                      <Box paddingBlockStart="100">
-                        <InlineStack gap="100" wrap>
-                          {r.tags.split(",").map((t) => <Badge key={t} size="small">{t}</Badge>)}
-                        </InlineStack>
-                      </Box>
-                    ) : null}
+                    <div style={{ maxWidth: 240 }}>
+                      <Tooltip content={r.productTitle} dismissOnMouseOut>
+                        <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          <Text as="span" variant="bodyMd">{r.productTitle}</Text>
+                        </div>
+                      </Tooltip>
+                      <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        <Text as="span" variant="bodySm" tone="subdued">{r.variantTitle}</Text>
+                      </div>
+                      {r.tags ? (
+                        <Box paddingBlockStart="100">
+                          <InlineStack gap="100" wrap>
+                            {r.tags.split(",").map((t) => <Badge key={t} size="small">{t}</Badge>)}
+                          </InlineStack>
+                        </Box>
+                      ) : null}
+                    </div>
                   </IndexTable.Cell>
                   <IndexTable.Cell>
                     <Text as="span" variant="bodyMd">{r.email}</Text>
@@ -457,14 +502,47 @@ export default function Requests() {
         secondaryActions={[{ content: "取消", onAction: () => setTagEditId(null) }]}
       >
         <Modal.Section>
-          <TextField
-            label="标签（逗号分隔）"
-            value={tagDraft}
-            onChange={setTagDraft}
-            placeholder="VIP, 待回访, 老客户"
-            autoComplete="off"
-            helpText="多个标签用逗号分隔。"
-          />
+          <BlockStack gap="300">
+            <Combobox
+              allowMultiple
+              activator={
+                <Combobox.TextField
+                  label="标签"
+                  labelHidden
+                  value={tagInput}
+                  onChange={setTagInput}
+                  placeholder="搜索已有标签，或输入新标签后从下拉点「新增」"
+                  autoComplete="off"
+                />
+              }
+            >
+              {tagOptions.length > 0 || canCreateTag ? (
+                <Listbox
+                  onSelect={(value) => {
+                    if (value === "__create__") addNewTag();
+                    else toggleTag(value);
+                    setTagInput("");
+                  }}
+                >
+                  {tagOptions.map((t) => (
+                    <Listbox.Option key={t} value={t}>{t}</Listbox.Option>
+                  ))}
+                  {canCreateTag ? (
+                    <Listbox.Action value="__create__">{`新增标签 “${tagInput.trim()}”`}</Listbox.Action>
+                  ) : null}
+                </Listbox>
+              ) : null}
+            </Combobox>
+            {tagList.length > 0 ? (
+              <InlineStack gap="200" wrap>
+                {tagList.map((t) => (
+                  <Tag key={t} onRemove={() => setTagList(tagList.filter((x) => x !== t))}>{t}</Tag>
+                ))}
+              </InlineStack>
+            ) : (
+              <Text as="p" tone="subdued" variant="bodySm">还没有标签。从上面选已有标签，或输入新标签。</Text>
+            )}
+          </BlockStack>
         </Modal.Section>
       </Modal>
 
