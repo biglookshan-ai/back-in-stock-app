@@ -17,12 +17,9 @@ import {
   Text,
   Modal,
   Checkbox,
-  Popover,
-  ActionList,
   Combobox,
   Listbox,
   Tag,
-  Tooltip,
   EmptyState,
   useIndexResourceState,
 } from "@shopify/polaris";
@@ -226,7 +223,6 @@ export default function Requests() {
   const [tagEditId, setTagEditId] = useState<string | null>(null);
   const [tagList, setTagList] = useState<string[]>([]); // 编辑中的标签
   const [tagInput, setTagInput] = useState(""); // 标签输入/搜索框
-  const [menuId, setMenuId] = useState<string | null>(null); // 行操作菜单
 
   // 行选择
   const { selectedResources, allResourcesSelected, handleSelectionChange } =
@@ -352,22 +348,6 @@ export default function Requests() {
     !allTags.some((t) => t.toLowerCase() === tagInput.trim().toLowerCase()) &&
     !tagList.includes(tagInput.trim());
 
-  // 行操作菜单项（随状态变化）
-  const rowActions = (r: Row) => {
-    const close = () => setMenuId(null);
-    const items: { content: string; destructive?: boolean; onAction: () => void }[] = [
-      { content: "编辑标签", onAction: () => { close(); openTag(r); } },
-    ];
-    if (r.status === "ARCHIVED") {
-      items.push({ content: "恢复", onAction: () => { close(); act("restore", r.id); } });
-      items.push({ content: "删除", destructive: true, onAction: () => { close(); act("delete", r.id); } });
-    } else {
-      if (r.status !== "CANCELLED") items.push({ content: "取消", onAction: () => { close(); act("cancel", r.id); } });
-      items.push({ content: "归档", onAction: () => { close(); act("archive", r.id); } });
-    }
-    return items;
-  };
-
   return (
     <Page primaryAction={{ content: "手动添加订阅", url: "/app/requests/new" }}>
       <TitleBar title="请求列表" />
@@ -434,7 +414,6 @@ export default function Requests() {
               itemCount={rows.length}
               selectedItemsCount={allResourcesSelected ? "All" : selectedResources.length}
               onSelectionChange={handleSelectionChange}
-              promotedBulkActions={[{ content: "发送邮件", onAction: () => setSendOpen(true) }]}
               headings={[
                 { title: "商品 / 变体" }, { title: "客户" },
                 { title: "状态" }, { title: "日期" }, { title: "操作", alignment: "end" },
@@ -443,13 +422,11 @@ export default function Requests() {
               {rows.map((r, i) => (
                 <IndexTable.Row id={r.id} key={r.id} position={i} selected={selectedResources.includes(r.id)}>
                   <IndexTable.Cell>
-                    <div style={{ maxWidth: 240 }}>
-                      <Tooltip content={r.productTitle} dismissOnMouseOut>
-                        <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          <Text as="span" variant="bodyMd">{r.productTitle}</Text>
-                        </div>
-                      </Tooltip>
-                      <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    <div style={{ width: 220 }}>
+                      <div title={r.productTitle} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        <Text as="span" variant="bodyMd">{r.productTitle}</Text>
+                      </div>
+                      <div title={r.variantTitle} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         <Text as="span" variant="bodySm" tone="subdued">{r.variantTitle}</Text>
                       </div>
                       {r.tags ? (
@@ -473,18 +450,19 @@ export default function Requests() {
                     <Text as="span" variant="bodySm" tone="subdued">{new Date(r.createdAt).toLocaleDateString()}</Text>
                   </IndexTable.Cell>
                   <IndexTable.Cell>
-                    <InlineStack align="end">
-                      <Popover
-                        active={menuId === r.id}
-                        onClose={() => setMenuId(null)}
-                        activator={
-                          <Button variant="tertiary" disclosure onClick={() => setMenuId(menuId === r.id ? null : r.id)}>
-                            操作
-                          </Button>
-                        }
-                      >
-                        <ActionList items={rowActions(r)} />
-                      </Popover>
+                    <InlineStack gap="300" align="end" blockAlign="center" wrap={false}>
+                      <Button variant="plain" onClick={() => openTag(r)}>标签</Button>
+                      {r.status === "ARCHIVED" ? (
+                        <>
+                          <Button variant="plain" onClick={() => act("restore", r.id)}>恢复</Button>
+                          <Button variant="plain" tone="critical" onClick={() => act("delete", r.id)}>删除</Button>
+                        </>
+                      ) : (
+                        <>
+                          {r.status !== "CANCELLED" && <Button variant="plain" onClick={() => act("cancel", r.id)}>取消</Button>}
+                          <Button variant="plain" onClick={() => act("archive", r.id)}>归档</Button>
+                        </>
+                      )}
                     </InlineStack>
                   </IndexTable.Cell>
                 </IndexTable.Row>
