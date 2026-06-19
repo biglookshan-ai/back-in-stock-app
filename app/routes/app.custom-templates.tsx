@@ -1,7 +1,7 @@
 // 自定义邮件模板库：手动发送邮件时可选用的可复用模板（新建/编辑/删除 + 实时预览）
 import { useState, useEffect } from "react";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
-import { useLoaderData, useFetcher } from "@remix-run/react";
+import { useLoaderData, useFetcher, useNavigate } from "@remix-run/react";
 import {
   Page, Card, TextField, Checkbox, Button, BlockStack, InlineStack, Text, Box,
   InlineGrid, Banner, ResourceList, ResourceItem, Modal,
@@ -83,6 +83,7 @@ export default function CustomTemplates() {
   const { shop, templates, brand, globalHeader, globalFooter } = useLoaderData<typeof loader>();
   const fetcher = useFetcher<typeof action>();
   const shopify = useAppBridge();
+  const navigate = useNavigate();
 
   const [sel, setSel] = useState<Tpl | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -117,7 +118,7 @@ export default function CustomTemplates() {
   const previewVars = { ...SAMPLE, ...brand } as Record<string, string>;
 
   return (
-    <Page>
+    <Page backAction={{ content: "返回", onAction: () => navigate(-1) }}>
       <TitleBar title="自定义邮件模板" />
       <Banner tone="info">
         <p>这些模板用于<b>手动发送邮件</b>(在「请求列表」筛选客人后群发)。变量同其它模板:<code>{"{{customer_name}} {{product_title}} {{variant_title}} {{product_url}} {{brand_color}}"}</code> 等。</p>

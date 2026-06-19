@@ -1,6 +1,6 @@
 // 设置：按钮 / 发件人 / 发送规则 / 小部件显示规则（按库存地点）
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
-import { useLoaderData, useFetcher } from "@remix-run/react";
+import { useLoaderData, useFetcher, useNavigate } from "@remix-run/react";
 import {
   Page,
   Card,
@@ -69,6 +69,7 @@ export default function SettingsPage() {
   const { settings, locations } = useLoaderData<typeof loader>();
   const fetcher = useFetcher<typeof action>();
   const shopify = useAppBridge();
+  const navigate = useNavigate();
   const [s, setS] = useState(settings);
   // 选中的地点（空数组 = 全部）
   const [locs, setLocs] = useState<string[]>(
@@ -103,7 +104,7 @@ export default function SettingsPage() {
     );
 
   return (
-    <Page>
+    <Page backAction={{ content: "返回", onAction: () => navigate(-1) }}>
       <TitleBar title="设置" />
       <BlockStack gap="400">
         <Card>

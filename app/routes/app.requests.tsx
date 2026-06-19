@@ -1,7 +1,7 @@
 // 请求列表：状态分页 + 搜索 + Newsletter/标签/日期 筛选 + 取消/归档/删除 + 标签编辑 + CSV 导出
 import { useState, useEffect } from "react";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
-import { useLoaderData, useSearchParams, useFetcher } from "@remix-run/react";
+import { useLoaderData, useSearchParams, useFetcher, useNavigate } from "@remix-run/react";
 import {
   Page,
   Card,
@@ -219,6 +219,7 @@ export default function Requests() {
   const [params, setParams] = useSearchParams();
   const fetcher = useFetcher<{ ok: boolean; message?: string; csv?: string; filename?: string }>();
   const shopify = useAppBridge();
+  const navigate = useNavigate();
 
   const [tagEditId, setTagEditId] = useState<string | null>(null);
   const [tagList, setTagList] = useState<string[]>([]); // 编辑中的标签
@@ -350,6 +351,7 @@ export default function Requests() {
 
   return (
     <Page
+      backAction={{ content: "返回", onAction: () => navigate(-1) }}
       primaryAction={{ content: "手动添加订阅", url: "/app/requests/new" }}
       secondaryActions={[
         {

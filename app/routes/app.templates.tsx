@@ -1,7 +1,7 @@
 // 邮件模板编辑：确认信 / 到货信 —— 实时预览 + 变量/条件 + 恢复默认 + 发测试
 import { useState, useEffect } from "react";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
-import { useLoaderData, useFetcher } from "@remix-run/react";
+import { useLoaderData, useFetcher, useNavigate } from "@remix-run/react";
 import {
   Page,
   Card,
@@ -162,6 +162,7 @@ export default function Templates() {
   const { templates, brand, globalHeader, globalFooter } = useLoaderData<typeof loader>();
   const fetcher = useFetcher<typeof action>();
   const shopify = useAppBridge();
+  const navigate = useNavigate();
   const [tab, setTab] = useState(0);
   const [drafts, setDrafts] = useState(() =>
     Object.fromEntries(
@@ -204,7 +205,7 @@ export default function Templates() {
   const previewSubject = renderClient(d.subject, previewVars);
 
   return (
-    <Page>
+    <Page backAction={{ content: "返回", onAction: () => navigate(-1) }}>
       <TitleBar title="自动发送模板" />
       <Tabs
         selected={tab}

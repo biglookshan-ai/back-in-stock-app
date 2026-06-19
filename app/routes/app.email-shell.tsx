@@ -2,7 +2,7 @@
 // 留空＝使用内置默认。改一次，全部模板的上标/下标同步更新。
 import { useState, useEffect } from "react";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
-import { useLoaderData, useFetcher } from "@remix-run/react";
+import { useLoaderData, useFetcher, useNavigate } from "@remix-run/react";
 import {
   Page, Card, TextField, Button, BlockStack, InlineStack, Text, Box, Banner, InlineGrid,
 } from "@shopify/polaris";
@@ -80,6 +80,7 @@ export default function EmailShell() {
   const { header, footer, defaultHeader, defaultFooter, brand } = useLoaderData<typeof loader>();
   const fetcher = useFetcher<typeof action>();
   const shopify = useAppBridge();
+  const navigate = useNavigate();
 
   const [h, setH] = useState(header);
   const [f, setF] = useState(footer);
@@ -98,7 +99,7 @@ export default function EmailShell() {
   );
 
   return (
-    <Page>
+    <Page backAction={{ content: "返回", onAction: () => navigate(-1) }}>
       <TitleBar title="邮件页眉页脚" />
       <BlockStack gap="400">
         <Banner tone="info">

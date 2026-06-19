@@ -1,7 +1,7 @@
 // 订阅者列表：按邮箱聚合 —— 姓名 / 营销同意 / 首次请求 / 总请求数 + CSV 导出
 import { useEffect } from "react";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
-import { useLoaderData, Link, useFetcher } from "@remix-run/react";
+import { useLoaderData, Link, useFetcher, useNavigate } from "@remix-run/react";
 import {
   Page,
   Card,
@@ -107,6 +107,7 @@ export default function Subscribers() {
   };
 
   const fetcher = useFetcher<{ csv?: string; filename?: string }>();
+  const navigate = useNavigate();
   useEffect(() => {
     if (fetcher.state !== "idle" || !fetcher.data?.csv) return;
     const a = document.createElement("a");
@@ -120,7 +121,7 @@ export default function Subscribers() {
     fetcher.submit({ mode }, { method: "POST" });
 
   return (
-    <Page>
+    <Page backAction={{ content: "返回", onAction: () => navigate(-1) }}>
       <TitleBar title="订阅者列表" />
       <Card padding="0">
         <Box padding="400">
