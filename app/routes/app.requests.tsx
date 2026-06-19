@@ -423,7 +423,7 @@ export default function Requests() {
                 <IndexTable.Row id={r.id} key={r.id} position={i} selected={selectedResources.includes(r.id)}>
                   <IndexTable.Cell>
                     <div style={{ width: 220 }}>
-                      <div title={r.productTitle} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      <div title={r.productTitle} style={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
                         <Text as="span" variant="bodyMd">{r.productTitle}</Text>
                       </div>
                       <div title={r.variantTitle} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
