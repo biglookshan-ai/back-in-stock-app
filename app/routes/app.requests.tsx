@@ -427,7 +427,7 @@ export default function Requests() {
             </Box>
             <Box paddingBlockStart="200">
               <Text as="span" variant="bodySm" tone="subdued">
-                「可用库存」列：店 = {stockNames.shopName} · EW = {stockNames.ewName}（实时 Available）
+                「可用库存」列：UK = {stockNames.shopName} · EW = {stockNames.ewName}（实时 Available）
               </Text>
             </Box>
           </Box>
@@ -473,7 +473,7 @@ export default function Requests() {
                   <IndexTable.Cell>
                     <BlockStack gap="050">
                       <InlineStack gap="150" blockAlign="center" wrap={false}>
-                        <Text as="span" variant="bodySm" tone="subdued">店</Text>{stockNum(r.stockShop)}
+                        <Text as="span" variant="bodySm" tone="subdued">UK</Text>{stockNum(r.stockShop)}
                       </InlineStack>
                       <InlineStack gap="150" blockAlign="center" wrap={false}>
                         <Text as="span" variant="bodySm" tone="subdued">EW</Text>{stockNum(r.stockEw)}

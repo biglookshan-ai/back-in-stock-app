@@ -183,6 +183,13 @@ export default function Products() {
               </Box>
             </InlineStack>
           </InlineStack>
+          {view === "variant" && (
+            <Box paddingBlockStart="200">
+              <Text as="span" variant="bodySm" tone="subdued">
+                库存简写：UK = {stockNames.shopName} · EW = {stockNames.ewName}（实时 Available）
+              </Text>
+            </Box>
+          )}
         </Box>
 
         {rows.length === 0 ? (
@@ -195,7 +202,7 @@ export default function Products() {
             selectable={false}
             headings={[
               { title: "产品 / 变体" }, { title: "Barcode" },
-              { title: `${stockNames.shopName} 可用` }, { title: `${stockNames.ewName} 可用` },
+              { title: "UK 可用" }, { title: "EW 可用" },
               { title: "等待中" }, { title: "总数" }, { title: "最后请求" }, { title: "链接" },
             ]}
           >
