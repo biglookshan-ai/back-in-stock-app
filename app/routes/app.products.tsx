@@ -8,6 +8,7 @@ import {
 import { TitleBar } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
+import { resolveStockLocations, getAvailability } from "../models/inventory.server";
 
 type Row = {
   id: string;
@@ -20,10 +21,12 @@ type Row = {
   last: string | null;
   storefrontUrl?: string;
   adminUrl?: string;
+  stockShop?: number | null;
+  stockEw?: number | null;
 };
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
+  const { session, admin } = await authenticate.admin(request);
   const shop = session.shop;
   const storeHandle = shop.replace(".myshopify.com", "");
   const url = new URL(request.url);
@@ -109,13 +112,34 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     return (b.last ?? "").localeCompare(a.last ?? "");
   });
 
-  return { view, sort, q, rows };
+  // 变体视图：查两地实时 Available 库存并附到每行
+  let stockNames = { shopName: "门店", ewName: "EW" };
+  if (view === "variant" && rows.length > 0) {
+    const loc = await resolveStockLocations(admin);
+    stockNames = { shopName: loc.shopName, ewName: loc.ewName };
+    const avail = await getAvailability(admin, rows.map((r) => r.id), loc);
+    rows.forEach((r) => {
+      const a = avail[r.id];
+      r.stockShop = a?.shop ?? null;
+      r.stockEw = a?.ew ?? null;
+    });
+  }
+
+  return { view, sort, q, rows, stockNames };
 };
 
 const fmtDate = (s: string | null) => (s ? new Date(s).toLocaleDateString() : "—");
 
+// 库存数字：缺货(<=0)红色，有货默认，未知显示「—」
+const stockText = (n: number | null | undefined) =>
+  n == null ? (
+    <Text as="span" tone="subdued">—</Text>
+  ) : (
+    <Text as="span" fontWeight="semibold" tone={n <= 0 ? "critical" : undefined}>{n}</Text>
+  );
+
 export default function Products() {
-  const { view, sort, q, rows } = useLoaderData<typeof loader>();
+  const { view, sort, q, rows, stockNames } = useLoaderData<typeof loader>();
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
 
@@ -170,8 +194,9 @@ export default function Products() {
             itemCount={rows.length}
             selectable={false}
             headings={[
-              { title: "产品 / 变体" }, { title: "Barcode" }, { title: "等待中" },
-              { title: "总数" }, { title: "最后请求" }, { title: "链接" },
+              { title: "产品 / 变体" }, { title: "Barcode" },
+              { title: `${stockNames.shopName} 可用` }, { title: `${stockNames.ewName} 可用` },
+              { title: "等待中" }, { title: "总数" }, { title: "最后请求" }, { title: "链接" },
             ]}
           >
             {rows.map((r, i) => (
@@ -184,6 +209,8 @@ export default function Products() {
                 <IndexTable.Cell>
                   <Text as="span" variant="bodyMd" fontWeight="medium">{r.barcode ?? "—"}</Text>
                 </IndexTable.Cell>
+                <IndexTable.Cell>{stockText(r.stockShop)}</IndexTable.Cell>
+                <IndexTable.Cell>{stockText(r.stockEw)}</IndexTable.Cell>
                 <IndexTable.Cell>{r.active}</IndexTable.Cell>
                 <IndexTable.Cell>{r.total}</IndexTable.Cell>
                 <IndexTable.Cell>{fmtDate(r.last)}</IndexTable.Cell>

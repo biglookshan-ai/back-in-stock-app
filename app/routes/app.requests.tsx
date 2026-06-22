@@ -28,6 +28,7 @@ import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { sendManualEmail, getSettings } from "../models/subscription.server";
 import { DEFAULT_HEADER, DEFAULT_FOOTER } from "../email-templates.server";
+import { resolveStockLocations, getAvailability } from "../models/inventory.server";
 import { productCard, CUSTOMER_CARD } from "../email-cards";
 import { EmailEditor } from "../components/EmailEditor";
 
@@ -88,8 +89,16 @@ const LABEL: Record<string, string> = {
   ACTIVE: "等待中", NOTIFIED: "已发送", ORDERED: "已订购", CANCELLED: "已取消", ARCHIVED: "已归档",
 };
 
+// 库存数字：缺货(<=0)红色，有货默认，未知「—」
+const stockNum = (n: number | null) =>
+  n == null ? (
+    <Text as="span" tone="subdued" variant="bodySm">—</Text>
+  ) : (
+    <Text as="span" variant="bodySm" fontWeight="semibold" tone={n <= 0 ? "critical" : undefined}>{n}</Text>
+  );
+
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
+  const { session, admin } = await authenticate.admin(request);
   const shop = session.shop;
   const url = new URL(request.url);
   const status = url.searchParams.get("status") ?? "";
@@ -122,6 +131,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   });
   countMap[""] = nonArchived;
 
+  // 两地实时 Available 库存（按当前页面行的变体批量查），辅助判断是否手动发信
+  const loc = await resolveStockLocations(admin);
+  const avail = await getAvailability(admin, rows.map((r) => r.variantId), loc);
+
   return {
     rows: rows.map((r) => ({
       id: r.id, email: r.email, customerName: r.customerName,
@@ -129,9 +142,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       productImage: r.productImage, price: r.price, productHandle: r.productHandle,
       status: r.status, tags: r.tags, marketing: r.marketingConsent,
       createdAt: r.createdAt.toISOString(),
+      stockShop: avail[r.variantId]?.shop ?? null,
+      stockEw: avail[r.variantId]?.ew ?? null,
     })),
     counts: countMap, status, q, filteredCount, customTemplates, allTags,
     shop,
+    stockNames: { shopName: loc.shopName, ewName: loc.ewName },
     globalHeader: settings.emailHeader || DEFAULT_HEADER,
     globalFooter: settings.emailFooter || DEFAULT_FOOTER,
     brand: {
@@ -204,17 +220,19 @@ type Row = {
   productTitle: string; variantTitle: string;
   productImage: string | null; price: string | null; productHandle: string | null;
   status: string; tags: string; marketing: boolean; createdAt: string;
+  stockShop: number | null; stockEw: number | null;
 };
 
 type CustomTpl = { id: string; name: string; subject: string; htmlBody: string; useGlobalShell: boolean };
 
 export default function Requests() {
-  const { rows, counts, status, q, customTemplates, allTags, shop, brand, globalHeader, globalFooter } =
+  const { rows, counts, status, q, customTemplates, allTags, shop, brand, globalHeader, globalFooter, stockNames } =
     useLoaderData<typeof loader>() as {
       rows: Row[]; counts: Record<string, number>; status: string; q: string;
       filteredCount: number; customTemplates: CustomTpl[]; allTags: string[];
       shop: string; brand: Record<string, string>;
       globalHeader: string; globalFooter: string;
+      stockNames: { shopName: string; ewName: string };
     };
   const [params, setParams] = useSearchParams();
   const fetcher = useFetcher<{ ok: boolean; message?: string; csv?: string; filename?: string }>();
@@ -407,6 +425,11 @@ export default function Requests() {
                 </Box>
               </InlineStack>
             </Box>
+            <Box paddingBlockStart="200">
+              <Text as="span" variant="bodySm" tone="subdued">
+                「可用库存」列：店 = {stockNames.shopName} · EW = {stockNames.ewName}（实时 Available）
+              </Text>
+            </Box>
           </Box>
 
           {rows.length === 0 ? (
@@ -419,7 +442,7 @@ export default function Requests() {
               selectedItemsCount={allResourcesSelected ? "All" : selectedResources.length}
               onSelectionChange={handleSelectionChange}
               headings={[
-                { title: "商品 / 变体" }, { title: "客户" },
+                { title: "商品 / 变体" }, { title: "客户" }, { title: "可用库存" },
                 { title: "状态" }, { title: "日期" }, { title: "操作", alignment: "end" },
               ]}
             >
@@ -446,6 +469,16 @@ export default function Requests() {
                     <Text as="span" variant="bodyMd">{r.email}</Text>
                     {r.customerName ? (<><br /><Text as="span" variant="bodySm" tone="subdued">{r.customerName}</Text></>) : null}
                     {r.marketing ? (<><br /><Badge tone="success" size="small">Newsletter</Badge></>) : null}
+                  </IndexTable.Cell>
+                  <IndexTable.Cell>
+                    <BlockStack gap="050">
+                      <InlineStack gap="150" blockAlign="center" wrap={false}>
+                        <Text as="span" variant="bodySm" tone="subdued">店</Text>{stockNum(r.stockShop)}
+                      </InlineStack>
+                      <InlineStack gap="150" blockAlign="center" wrap={false}>
+                        <Text as="span" variant="bodySm" tone="subdued">EW</Text>{stockNum(r.stockEw)}
+                      </InlineStack>
+                    </BlockStack>
                   </IndexTable.Cell>
                   <IndexTable.Cell>
                     <Badge tone={TONE[r.status]}>{LABEL[r.status] ?? r.status}</Badge>
