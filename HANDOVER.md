@@ -5,6 +5,23 @@
 
 ---
 
+## 🔐 备份与账号清单（最重要，先守住这些）
+
+> 光保存本地代码文件夹**不够**。代码已在 GitHub；但运行所需的服务器、数据库、密钥都在下面的在线账号里。**这 4 样任何一个丢了都可能无法恢复，请勿注销/删除：**
+
+| # | 守住什么 | 在哪 / 地址 | 里面有什么（为什么不能丢） |
+|---|---|---|---|
+| 1 | **GitHub 仓库** | https://github.com/biglookshan-ai/back-in-stock-app | 全部源代码 + 历史。**这是代码的权威备份**，本地文件夹丢了可 `git clone` 找回 |
+| 2 | **Railway 账号/项目** | railway.app（项目：back-in-stock-app-production） | 托管服务器 + **PostgreSQL 数据库（所有订阅记录！）** + 环境变量密钥（API secret、DATABASE_URL、RESEND_API_KEY）|
+| 3 | **Shopify Partner 账号** | partners.shopify.com（Org: mungchill-test，App: Back In Stock Dev，client_id `97309ed8…`）| App 本体 + `SHOPIFY_API_SECRET` |
+| 4 | **Resend 账号** | resend.com | 发邮件用的 `RESEND_API_KEY` |
+
+**本地文件夹**：`~/back-in-stock-app/`。可留可不留（GitHub 已备份）；若要拷贝，记得带上隐藏的 `.git`、`.env`（Finder 按 `Cmd+Shift+.` 显示），`node_modules`/`build` 可不带（能重建）。
+
+**数据库定期备份建议**：在 Railway 的 Postgres 插件里开自动备份 / 定期手动导出，订阅数据无价。
+
+---
+
 ## 1. 这个 App 是做什么的
 
 缺货商品页显示「Email me when Available」按钮 → 客人留邮箱订阅 → 到货后自动/手动发邮件提醒。
