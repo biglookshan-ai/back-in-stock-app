@@ -293,12 +293,21 @@ async function sendEmail(
     unsubscribe_url: unsubscribeUrl(appUrl, sub.id),
   });
 
+  // 抄送转发：开关打开时，把所有发出的邮件同时抄送给同事
+  const cc = settings.ccEnabled
+    ? settings.ccEmails
+        .split(/[,\n;]/)
+        .map((s) => s.trim())
+        .filter((s) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s))
+    : [];
+
   const result = await mailer.send({
     to: sub.email,
     subject,
     html,
     fromName: settings.fromName,
     fromEmail: settings.fromEmail || `no-reply@${sub.shop}`,
+    ...(cc.length ? { cc } : {}),
   });
 
   await prisma.emailLog.create({

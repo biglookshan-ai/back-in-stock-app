@@ -130,4 +130,8 @@ model Settings {
   // 全局邮件页眉/页脚（统一编辑，所有用全局的模板共用；空=用内置默认）
   emailHeader String @default("")
   emailFooter String @default("")
+
+  // 抄送转发：所有发出的邮件（确认/到货/手动）同时抄送给同事
+  ccEnabled Boolean @default(false)
+  ccEmails  String  @default("") // 逗号/换行分隔的多个邮箱
 }

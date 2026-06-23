@@ -10,6 +10,7 @@ export interface MailInput {
   html: string;
   fromName: string;
   fromEmail: string;
+  cc?: string[]; // 抄送（同事内部知会）
 }
 
 export interface MailResult {
@@ -35,6 +36,7 @@ class ResendMailer implements MailerAdapter {
         body: JSON.stringify({
           from: `${input.fromName} <${input.fromEmail}>`,
           to: [input.to],
+          ...(input.cc && input.cc.length ? { cc: input.cc } : {}),
           subject: input.subject,
           html: input.html,
         }),
@@ -83,6 +85,7 @@ class SmtpMailer implements MailerAdapter {
       await transporter.sendMail({
         from: `"${input.fromName}" <${input.fromEmail}>`,
         to: input.to,
+        ...(input.cc && input.cc.length ? { cc: input.cc } : {}),
         subject: input.subject,
         html: input.html,
       });
