@@ -246,6 +246,15 @@ shopify app dev        # 起隧道 + 本地 Remix，装到开发店测试
 
 ---
 
-## 13. 其它参考文档（仓库内，可能略旧，以本文件为准）
+## 13. 后台界面多语言（i18n）
+
+- 后台 UI 支持 **English（默认）/ 中文** 切换，在**设置 → 界面语言**里选，存 `Settings.uiLanguage`。
+- 机制：`app/i18n.ts` 一个 `中文 → 英文` 词典 + `useT()` hook（组件里 `const t = useT(); t("中文")`）。源码里用**中文做 key**，英文从词典查，中文模式直接用 key。
+- 语言由根路由 `app.tsx` 的 loader 提供（`useRouteLoaderData("routes/app")`）；切换保存后整个后台 revalidate 即时生效。
+- 服务端 action 里的提示文案用 `translate(zh, lang)`（先 `getSettings` 取 `uiLanguage`）。
+- **只影响后台界面**，不影响发给客人的邮件（邮件内容由邮件模板单独控制）。
+- 加新文案：在 `app/i18n.ts` 的 `DICT` 里加一条 `"中文": "English"`，组件里用 `t("中文")`。**注意别加重复 key**（TS 会报 `TS1117`）。
+
+## 14. 其它参考文档（仓库内，可能略旧，以本文件为准）
 
 `README.md`、`SETUP.md`、`TECH_DESIGN.md`、`docs/*.md`（DEPLOYMENT / DEVELOPMENT / FEATURES / DEV-JOURNEY 等）。
