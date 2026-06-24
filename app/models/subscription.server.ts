@@ -239,10 +239,18 @@ export async function sendManualEmail(
   useGlobalShell = true,
 ) {
   let sent = 0;
+  const sentIds: string[] = [];
   for (const sub of subs) {
     const res = await sendEmail(sub, "MANUAL", { subject, htmlBody, useGlobalShell });
-    if (res.ok) sent++;
+    if (res.ok) { sent++; sentIds.push(sub.id); }
     await new Promise((r) => setTimeout(r, 150)); // 温和限速
+  }
+  // 手动发成功的、仍在「等待中」的 → 标记为「已发送」，离开待提醒列表
+  if (sentIds.length) {
+    await prisma.subscription.updateMany({
+      where: { id: { in: sentIds }, status: "ACTIVE" },
+      data: { status: "NOTIFIED", notifiedAt: new Date() },
+    });
   }
   return sent;
 }
@@ -318,6 +326,8 @@ async function sendEmail(
       toEmail: sub.email,
       status: result.ok ? "SENT" : "FAILED",
       error: result.error ?? null,
+      subject, // 主题快照
+      htmlBody: html, // 完整 HTML 快照（可回看预览）
     },
   });
   return result;

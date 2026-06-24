@@ -135,6 +135,22 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const loc = await resolveStockLocations(admin);
   const avail = await getAvailability(admin, rows.map((r) => r.variantId), loc);
 
+  // 每条订阅「最近一次发信」结果（自动/手动 + 成功/失败）
+  const rowIds = rows.map((r) => r.id);
+  const lastLogs = rowIds.length
+    ? await prisma.emailLog.findMany({
+        // 只看「通知类」邮件（到货/手动），订阅确认信不算"已通知"
+        where: { subscriptionId: { in: rowIds }, type: { not: "CONFIRMATION" } },
+        orderBy: [{ subscriptionId: "asc" }, { sentAt: "desc" }],
+        distinct: ["subscriptionId"],
+        select: { subscriptionId: true, type: true, status: true, error: true, sentAt: true },
+      })
+    : [];
+  const lastSendMap: Record<string, { type: string; status: string; error: string | null; sentAt: string }> = {};
+  lastLogs.forEach((l) => {
+    lastSendMap[l.subscriptionId] = { type: l.type, status: l.status, error: l.error, sentAt: l.sentAt.toISOString() };
+  });
+
   return {
     rows: rows.map((r) => ({
       id: r.id, email: r.email, customerName: r.customerName,
@@ -144,6 +160,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       createdAt: r.createdAt.toISOString(),
       stockShop: avail[r.variantId]?.shop ?? null,
       stockEw: avail[r.variantId]?.ew ?? null,
+      lastSend: lastSendMap[r.id] ?? null,
     })),
     counts: countMap, status, q, filteredCount, customTemplates, allTags,
     shop,
@@ -175,6 +192,33 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     });
     const sent = await sendManualEmail(subs, subject, htmlBody, useGlobalShell);
     return { ok: true, message: `已发送 ${sent} 封` };
+  }
+
+  // 某订阅的发信记录列表（不含正文，省流量）
+  if (intent === "maillogs") {
+    const subscriptionId = String(fd.get("subscriptionId") ?? "");
+    const logs = await prisma.emailLog.findMany({
+      where: { shop: session.shop, subscriptionId },
+      orderBy: { sentAt: "desc" },
+      select: { id: true, type: true, status: true, error: true, subject: true, toEmail: true, sentAt: true, htmlBody: true },
+    });
+    return {
+      logs: logs.map((l) => ({
+        id: l.id, type: l.type, status: l.status, error: l.error,
+        subject: l.subject, toEmail: l.toEmail, sentAt: l.sentAt.toISOString(),
+        hasBody: !!l.htmlBody,
+      })),
+    };
+  }
+
+  // 取某条发信记录的完整 HTML（点击预览时才拉）
+  if (intent === "maillogbody") {
+    const logId = String(fd.get("logId") ?? "");
+    const log = await prisma.emailLog.findFirst({
+      where: { id: logId, shop: session.shop },
+      select: { htmlBody: true },
+    });
+    return { htmlBody: log?.htmlBody ?? "" };
   }
 
   // 导出 CSV：返回字符串，前端转成文件下载（走 action，认证可靠）
@@ -221,6 +265,19 @@ type Row = {
   productImage: string | null; price: string | null; productHandle: string | null;
   status: string; tags: string; marketing: boolean; createdAt: string;
   stockShop: number | null; stockEw: number | null;
+  lastSend: { type: string; status: string; error: string | null; sentAt: string } | null;
+};
+
+type MailLog = {
+  id: string; type: string; status: string; error: string | null;
+  subject: string | null; toEmail: string; sentAt: string; hasBody: boolean;
+};
+
+// 邮件类型 → 中文 + 自动/手动
+const MAIL_KIND: Record<string, { label: string; auto: boolean }> = {
+  BACK_IN_STOCK: { label: "到货通知", auto: true },
+  CONFIRMATION: { label: "订阅确认", auto: true },
+  MANUAL: { label: "手动发送", auto: false },
 };
 
 type CustomTpl = { id: string; name: string; subject: string; htmlBody: string; useGlobalShell: boolean };
@@ -236,12 +293,27 @@ export default function Requests() {
     };
   const [params, setParams] = useSearchParams();
   const fetcher = useFetcher<{ ok: boolean; message?: string; csv?: string; filename?: string }>();
+  const logFetcher = useFetcher<{ logs?: MailLog[] }>();
+  const bodyFetcher = useFetcher<{ htmlBody?: string }>();
   const shopify = useAppBridge();
   const navigate = useNavigate();
 
   const [tagEditId, setTagEditId] = useState<string | null>(null);
   const [tagList, setTagList] = useState<string[]>([]); // 编辑中的标签
   const [tagInput, setTagInput] = useState(""); // 标签输入/搜索框
+
+  // 发信记录 modal
+  const [logSubId, setLogSubId] = useState<string | null>(null);
+  const [previewLogId, setPreviewLogId] = useState<string | null>(null);
+  const openLogs = (id: string) => {
+    setLogSubId(id);
+    setPreviewLogId(null);
+    logFetcher.submit({ intent: "maillogs", subscriptionId: id }, { method: "POST" });
+  };
+  const previewLog = (id: string) => {
+    setPreviewLogId(id);
+    bodyFetcher.submit({ intent: "maillogbody", logId: id }, { method: "POST" });
+  };
 
   // 行选择
   const { selectedResources, allResourcesSelected, handleSelectionChange } =
@@ -481,13 +553,28 @@ export default function Requests() {
                     </BlockStack>
                   </IndexTable.Cell>
                   <IndexTable.Cell>
-                    <Badge tone={TONE[r.status]}>{LABEL[r.status] ?? r.status}</Badge>
+                    <BlockStack gap="100">
+                      <Badge tone={TONE[r.status]}>{LABEL[r.status] ?? r.status}</Badge>
+                      {r.lastSend ? (
+                        <InlineStack gap="100" blockAlign="center" wrap={false}>
+                          <Badge size="small" tone={MAIL_KIND[r.lastSend.type]?.auto ? "info" : undefined}>
+                            {MAIL_KIND[r.lastSend.type]?.auto ? "自动" : "手动"}
+                          </Badge>
+                          <span title={r.lastSend.status === "FAILED" ? (r.lastSend.error ?? "发送失败") : "发送成功"}>
+                            <Text as="span" variant="bodySm" tone={r.lastSend.status === "SENT" ? "success" : "critical"}>
+                              {r.lastSend.status === "SENT" ? "✓ 已发送" : "✗ 失败"}
+                            </Text>
+                          </span>
+                        </InlineStack>
+                      ) : null}
+                    </BlockStack>
                   </IndexTable.Cell>
                   <IndexTable.Cell>
                     <Text as="span" variant="bodySm" tone="subdued">{new Date(r.createdAt).toLocaleDateString()}</Text>
                   </IndexTable.Cell>
                   <IndexTable.Cell>
                     <InlineStack gap="300" align="end" blockAlign="center" wrap={false}>
+                      <Button variant="plain" onClick={() => openLogs(r.id)}>记录</Button>
                       <Button variant="plain" onClick={() => openTag(r)}>标签</Button>
                       {r.status === "ARCHIVED" ? (
                         <>
@@ -558,6 +645,62 @@ export default function Requests() {
               <Text as="p" tone="subdued" variant="bodySm">还没有标签。从上面选已有标签，或输入新标签。</Text>
             )}
           </BlockStack>
+        </Modal.Section>
+      </Modal>
+
+      {/* 发信记录：这条订阅发过哪些邮件（自动/手动、成功/失败、可预览内容）*/}
+      <Modal
+        open={logSubId !== null}
+        onClose={() => { setLogSubId(null); setPreviewLogId(null); }}
+        title={previewLogId ? "邮件内容预览" : "发信记录"}
+        primaryAction={
+          previewLogId
+            ? { content: "← 返回记录", onAction: () => setPreviewLogId(null) }
+            : { content: "关闭", onAction: () => { setLogSubId(null); } }
+        }
+      >
+        <Modal.Section>
+          {previewLogId ? (
+            <Box borderRadius="200" borderWidth="025" borderColor="border">
+              <iframe
+                title="maillog-preview"
+                srcDoc={bodyFetcher.state !== "idle" ? "<p style='font-family:sans-serif;padding:16px;color:#888'>加载中…</p>" : (bodyFetcher.data?.htmlBody || "<p style='font-family:sans-serif;padding:16px;color:#888'>（无存档内容）</p>")}
+                style={{ width: "100%", height: 480, border: "none", display: "block" }}
+              />
+            </Box>
+          ) : logFetcher.state !== "idle" ? (
+            <Text as="p" tone="subdued">加载中…</Text>
+          ) : logFetcher.data?.logs && logFetcher.data.logs.length > 0 ? (
+            <BlockStack gap="300">
+              {logFetcher.data.logs.map((l) => {
+                const kind = MAIL_KIND[l.type];
+                const ok = l.status === "SENT";
+                return (
+                  <Box key={l.id} borderRadius="200" borderWidth="025" borderColor="border" padding="300">
+                    <InlineStack align="space-between" blockAlign="center" wrap={false}>
+                      <BlockStack gap="050">
+                        <InlineStack gap="200" blockAlign="center" wrap>
+                          <Badge size="small" tone={kind?.auto ? "info" : undefined}>{kind?.auto ? "自动" : "手动"}</Badge>
+                          <Text as="span" variant="bodyMd" fontWeight="medium">{kind?.label ?? l.type}</Text>
+                          <Text as="span" variant="bodySm" tone={ok ? "success" : "critical"}>{ok ? "✓ 已发送" : "✗ 失败"}</Text>
+                        </InlineStack>
+                        <Text as="span" variant="bodySm" tone="subdued">
+                          {new Date(l.sentAt).toLocaleString()} · {l.toEmail}
+                        </Text>
+                        {l.subject ? <Text as="span" variant="bodySm">主题：{l.subject}</Text> : null}
+                        {!ok && l.error ? <Text as="span" variant="bodySm" tone="critical">原因：{l.error}</Text> : null}
+                      </BlockStack>
+                      {l.hasBody ? (
+                        <Button variant="plain" onClick={() => previewLog(l.id)}>预览</Button>
+                      ) : null}
+                    </InlineStack>
+                  </Box>
+                );
+              })}
+            </BlockStack>
+          ) : (
+            <Text as="p" tone="subdued">这条订阅还没有发信记录。</Text>
+          )}
         </Modal.Section>
       </Modal>
 

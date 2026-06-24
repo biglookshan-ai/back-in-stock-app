@@ -93,15 +93,18 @@ model EmailLog {
   id             String   @id @default(cuid())
   shop           String
   subscriptionId String
-  type           String // CONFIRMATION | BACK_IN_STOCK
+  type           String // CONFIRMATION | BACK_IN_STOCK | MANUAL
   toEmail        String
   status         String // SENT | FAILED
   error          String?
+  subject        String? // 发出时的主题快照
+  htmlBody       String? // 发出时的完整 HTML（可回看预览）
   sentAt         DateTime @default(now())
 
   subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
 
   @@index([shop, type, sentAt])
+  @@index([subscriptionId, sentAt])
 }
 
 // ── 店铺设置 ──────────────────────────────────────────────────────
