@@ -16,6 +16,7 @@ import {
 import { TitleBar } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
+import { useT } from "../i18n";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -81,23 +82,24 @@ function NavTile({ to, title, value, hint }: { to: string; title: string; value:
 export default function Dashboard() {
   const { total, active, notified, ordered, emailsSent, top, productCount, customerCount } =
     useLoaderData<typeof loader>();
+  const t = useT();
 
   return (
     <Page>
       <TitleBar title="Back in Stock Dashboard" />
       <BlockStack gap="500">
         <InlineGrid columns={{ xs: 1, sm: 2, md: 5 }} gap="400">
-          <Stat label="总订阅数" value={total} />
-          <Stat label="待发提醒（等待中）" value={active} />
-          <Stat label="已通知（已发送）" value={notified} />
-          <Stat label="转化（已订购）" value={ordered} />
-          <Stat label="累计发信成功" value={emailsSent} />
+          <Stat label={t("总订阅数")} value={total} />
+          <Stat label={t("待发提醒（等待中）")} value={active} />
+          <Stat label={t("已通知（已发送）")} value={notified} />
+          <Stat label={t("转化（已订购）")} value={ordered} />
+          <Stat label={t("累计发信成功")} value={emailsSent} />
         </InlineGrid>
 
         <InlineGrid columns={{ xs: 1, sm: 3 }} gap="400">
-          <NavTile to="/app/requests" title="所有订阅" value={total} hint="查看请求列表 →" />
-          <NavTile to="/app/products" title="所有产品" value={productCount} hint="查看产品订阅 →" />
-          <NavTile to="/app/subscribers" title="所有客人" value={customerCount} hint="查看订阅者 →" />
+          <NavTile to="/app/requests" title={t("所有订阅")} value={total} hint={t("查看请求列表 →")} />
+          <NavTile to="/app/products" title={t("所有产品")} value={productCount} hint={t("查看产品订阅 →")} />
+          <NavTile to="/app/subscribers" title={t("所有客人")} value={customerCount} hint={t("查看订阅者 →")} />
         </InlineGrid>
 
         <Layout>
@@ -105,21 +107,21 @@ export default function Dashboard() {
             <Card padding="0">
               <Box padding="400">
                 <Text as="h2" variant="headingMd">
-                  热门缺货商品（待发提醒 Top 10）
+                  {t("热门缺货商品（待发提醒 Top 10）")}
                 </Text>
               </Box>
               {top.length === 0 ? (
-                <EmptyState heading="还没有订阅数据" image="">
-                  <p>客户在缺货商品页订阅后，这里会显示需求最高的商品。</p>
+                <EmptyState heading={t("还没有订阅数据")} image="">
+                  <p>{t("客户在缺货商品页订阅后，这里会显示需求最高的商品。")}</p>
                 </EmptyState>
               ) : (
                 <IndexTable
                   itemCount={top.length}
                   selectable={false}
                   headings={[
-                    { title: "商品" },
-                    { title: "变体" },
-                    { title: "等待人数" },
+                    { title: t("商品") },
+                    { title: t("变体") },
+                    { title: t("等待人数") },
                   ]}
                 >
                   {top.map((row, i) => (

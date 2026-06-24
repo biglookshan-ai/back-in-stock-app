@@ -137,4 +137,7 @@ model Settings {
   // 抄送转发：所有发出的邮件（确认/到货/手动）同时抄送给同事
   ccEnabled Boolean @default(false)
   ccEmails  String  @default("") // 逗号/换行分隔的多个邮箱
+
+  // 后台界面语言（仅影响 admin UI，不影响发给客人的邮件）
+  uiLanguage String @default("en") // en | zh
 }

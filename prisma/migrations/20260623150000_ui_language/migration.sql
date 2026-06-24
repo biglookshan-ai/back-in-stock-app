@@ -1,0 +1,1 @@
+ALTER TABLE "Settings" ADD COLUMN "uiLanguage" TEXT NOT NULL DEFAULT 'en';
