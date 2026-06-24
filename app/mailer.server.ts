@@ -10,7 +10,7 @@ export interface MailInput {
   html: string;
   fromName: string;
   fromEmail: string;
-  cc?: string[]; // 抄送（同事内部知会）
+  bcc?: string[]; // 密送（同事内部知会，收件客人看不到）
 }
 
 export interface MailResult {
@@ -36,7 +36,7 @@ class ResendMailer implements MailerAdapter {
         body: JSON.stringify({
           from: `${input.fromName} <${input.fromEmail}>`,
           to: [input.to],
-          ...(input.cc && input.cc.length ? { cc: input.cc } : {}),
+          ...(input.bcc && input.bcc.length ? { bcc: input.bcc } : {}),
           subject: input.subject,
           html: input.html,
         }),
@@ -85,7 +85,7 @@ class SmtpMailer implements MailerAdapter {
       await transporter.sendMail({
         from: `"${input.fromName}" <${input.fromEmail}>`,
         to: input.to,
-        ...(input.cc && input.cc.length ? { cc: input.cc } : {}),
+        ...(input.bcc && input.bcc.length ? { bcc: input.bcc } : {}),
         subject: input.subject,
         html: input.html,
       });

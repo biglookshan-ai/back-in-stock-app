@@ -147,19 +147,19 @@ export default function SettingsPage() {
 
         <Card>
           <BlockStack gap="400">
-            <Text as="h2" variant="headingMd">邮件抄送（CC）</Text>
+            <Text as="h2" variant="headingMd">邮件密送（BCC）</Text>
             <Checkbox
-              label="把所有发出的邮件抄送给同事"
-              helpText="开启后，无论是确认信、到货通知还是手动群发，都会同时抄送给下面填写的邮箱，方便同事知道发了什么。"
+              label="把所有发出的邮件密送给同事"
+              helpText="开启后，无论是确认信、到货通知还是手动群发，都会同时密送给下面填写的邮箱，方便同事知道发了什么。密送对收件客人不可见。"
               checked={s.ccEnabled}
               onChange={(v) => setS({ ...s, ccEnabled: v })}
             />
             <TextField
-              label="抄送邮箱"
+              label="密送邮箱"
               value={s.ccEmails}
               onChange={(v) => setS({ ...s, ccEmails: v })}
               placeholder="alice@cinegearpro.co.uk, bob@cinegearpro.co.uk"
-              helpText="多个邮箱用逗号、分号或换行分隔。开关关闭时不抄送。"
+              helpText="多个邮箱用逗号、分号或换行分隔。客人收到的邮件里看不到这些地址。开关关闭时不密送。"
               multiline={3}
               autoComplete="off"
               disabled={!s.ccEnabled}
