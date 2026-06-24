@@ -11,6 +11,7 @@ import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { getSettings } from "../models/subscription.server";
 import { DEFAULT_HEADER, DEFAULT_FOOTER } from "../email-templates.server";
+import { useT, translate, type Lang } from "../i18n";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -36,11 +37,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const fd = await request.formData();
   const emailHeader = String(fd.get("header") ?? "");
   const emailFooter = String(fd.get("footer") ?? "");
+  const lang: Lang = (await getSettings(session.shop)).uiLanguage === "zh" ? "zh" : "en";
   await prisma.settings.update({
     where: { shop: session.shop },
     data: { emailHeader, emailFooter },
   });
-  return { ok: true, message: "已保存，所有使用全局外壳的模板已同步" };
+  return { ok: true, message: translate("已保存，所有使用全局外壳的模板已同步", lang) };
 };
 
 // 客户端渲染（与服务端 renderTemplate 一致）
@@ -81,6 +83,7 @@ export default function EmailShell() {
   const fetcher = useFetcher<typeof action>();
   const shopify = useAppBridge();
   const navigate = useNavigate();
+  const t = useT();
 
   const [h, setH] = useState(header);
   const [f, setF] = useState(footer);
@@ -99,15 +102,14 @@ export default function EmailShell() {
   );
 
   return (
-    <Page backAction={{ content: "返回", onAction: () => navigate("/app") }}>
-      <TitleBar title="邮件页眉页脚" />
+    <Page backAction={{ content: t("返回"), onAction: () => navigate("/app") }}>
+      <TitleBar title={t("邮件页眉页脚")} />
       <BlockStack gap="400">
         <Banner tone="info">
           <p>
-            这里统一编辑所有邮件的<b>页眉（顶部 logo）</b>和<b>页脚（公司信息 / 退订）</b>。
-            模板里勾选「使用全局页眉页脚」即可共用这里的内容，<b>改一次，全部模板同步</b>。
+            {t("这里统一编辑所有邮件的页眉（顶部 logo）和页脚（公司信息 / 退订）。模板里勾选「使用全局页眉页脚」即可共用，改一次全部模板同步。")}
             <br />
-            两个框<b>留空＝使用内置默认</b>。可用变量：
+            {t("两个框留空＝使用内置默认。可用变量：")}
             <code>{"{{shop_name}} {{brand_logo}} {{brand_color}} {{website_url}} {{company_address}} {{support_email}} {{unsubscribe_url}}"}</code>
           </p>
         </Banner>
@@ -116,34 +118,34 @@ export default function EmailShell() {
           <Card>
             <BlockStack gap="400">
               <InlineStack align="space-between" blockAlign="center">
-                <Text as="h3" variant="headingMd">页眉 HTML</Text>
+                <Text as="h3" variant="headingMd">{t("页眉 HTML")}</Text>
                 <InlineStack gap="200">
-                  <Button variant="plain" onClick={() => setH(defaultHeader)}>载入默认</Button>
-                  <Button variant="plain" onClick={() => setH("")}>清空（用内置）</Button>
+                  <Button variant="plain" onClick={() => setH(defaultHeader)}>{t("载入默认")}</Button>
+                  <Button variant="plain" onClick={() => setH("")}>{t("清空（用内置）")}</Button>
                 </InlineStack>
               </InlineStack>
-              <TextField label="页眉" labelHidden value={h} onChange={setH}
-                multiline={6} autoComplete="off" placeholder="留空＝使用内置默认页眉" />
+              <TextField label={t("页眉")} labelHidden value={h} onChange={setH}
+                multiline={6} autoComplete="off" placeholder={t("留空＝使用内置默认页眉")} />
 
               <InlineStack align="space-between" blockAlign="center">
-                <Text as="h3" variant="headingMd">页脚 HTML</Text>
+                <Text as="h3" variant="headingMd">{t("页脚 HTML")}</Text>
                 <InlineStack gap="200">
-                  <Button variant="plain" onClick={() => setF(defaultFooter)}>载入默认</Button>
-                  <Button variant="plain" onClick={() => setF("")}>清空（用内置）</Button>
+                  <Button variant="plain" onClick={() => setF(defaultFooter)}>{t("载入默认")}</Button>
+                  <Button variant="plain" onClick={() => setF("")}>{t("清空（用内置）")}</Button>
                 </InlineStack>
               </InlineStack>
-              <TextField label="页脚" labelHidden value={f} onChange={setF}
-                multiline={8} autoComplete="off" placeholder="留空＝使用内置默认页脚" />
+              <TextField label={t("页脚")} labelHidden value={f} onChange={setF}
+                multiline={8} autoComplete="off" placeholder={t("留空＝使用内置默认页脚")} />
 
               <InlineStack gap="300">
-                <Button variant="primary" loading={fetcher.state !== "idle"} onClick={save}>保存</Button>
+                <Button variant="primary" loading={fetcher.state !== "idle"} onClick={save}>{t("保存")}</Button>
               </InlineStack>
             </BlockStack>
           </Card>
 
           <Card>
             <BlockStack gap="300">
-              <Text as="h3" variant="headingMd">实时预览</Text>
+              <Text as="h3" variant="headingMd">{t("实时预览")}</Text>
               <Box borderRadius="200" borderWidth="025" borderColor="border" overflowX="hidden">
                 <iframe title="shell-preview" srcDoc={previewHtml}
                   style={{ width: "100%", height: 560, border: "none", display: "block" }} />

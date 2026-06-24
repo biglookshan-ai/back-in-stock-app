@@ -18,7 +18,8 @@ import {
 } from "@shopify/polaris";
 import { TitleBar, useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
-import { createManualSubscription } from "../models/subscription.server";
+import { createManualSubscription, getSettings } from "../models/subscription.server";
+import { useT, translate, type Lang } from "../i18n";
 
 const CURRENCY_SYMBOL: Record<string, string> = {
   GBP: "£", USD: "$", EUR: "€", CAD: "C$", AUD: "A$", JPY: "¥", CNY: "¥", HKD: "HK$",
@@ -41,14 +42,16 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 export const action = async ({ request }: ActionFunctionArgs) => {
   const { session, admin } = await authenticate.admin(request);
   const fd = await request.formData();
+  const lang: Lang = (await getSettings(session.shop)).uiLanguage === "zh" ? "zh" : "en";
+  const tr = (zh: string) => translate(zh, lang);
   const email = String(fd.get("email") ?? "").trim().toLowerCase();
   const variantId = String(fd.get("variantId") ?? "");
   const name = String(fd.get("name") ?? "").trim();
   const status = String(fd.get("status") ?? "ACTIVE");
   const marketing = fd.get("marketing") === "true";
 
-  if (!EMAIL_RE.test(email)) return json({ error: "邮箱格式不正确" }, { status: 422 });
-  if (!variantId) return json({ error: "请先选择产品/变体" }, { status: 422 });
+  if (!EMAIL_RE.test(email)) return json({ error: tr("邮箱格式不正确") }, { status: 422 });
+  if (!variantId) return json({ error: tr("请先选择产品/变体") }, { status: 422 });
 
   // Admin API 取权威 barcode/标题/图/价
   let variant: any;
@@ -70,9 +73,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     variant = j?.data?.productVariant;
     currency = j?.data?.shop?.currencyCode ?? "";
   } catch (e) {
-    return json({ error: "查询产品失败" }, { status: 502 });
+    return json({ error: tr("查询产品失败") }, { status: 502 });
   }
-  if (!variant?.product) return json({ error: "找不到该变体" }, { status: 404 });
+  if (!variant?.product) return json({ error: tr("找不到该变体") }, { status: 404 });
 
   await createManualSubscription({
     shop: session.shop,
@@ -104,6 +107,7 @@ const STATUS_OPTIONS = [
 export default function NewSubscription() {
   const fetcher = useFetcher<typeof action>();
   const shopify = useAppBridge();
+  const t = useT();
 
   const [productTitle, setProductTitle] = useState("");
   const [variants, setVariants] = useState<Array<{ id: string; title: string }>>([]);
@@ -133,26 +137,26 @@ export default function NewSubscription() {
 
   return (
     <Page
-      backAction={{ content: "请求列表", url: "/app/requests" }}
-      title="手动添加订阅"
+      backAction={{ content: t("请求列表"), url: "/app/requests" }}
+      title={t("手动添加订阅")}
     >
-      <TitleBar title="手动添加订阅" />
+      <TitleBar title={t("手动添加订阅")} />
       <Card>
         <BlockStack gap="400">
           <Banner tone="info">
-            <p>用于后台手动录入,或从其它 app 迁移历史订阅。此操作<b>不会</b>给客户发确认邮件。</p>
+            <p>{t("用于后台手动录入,或从其它 app 迁移历史订阅。此操作不会给客户发确认邮件。")}</p>
           </Banner>
 
           {/* 产品/变体 */}
           <BlockStack gap="200">
-            <Text as="span" variant="bodyMd" fontWeight="medium">产品 / 变体</Text>
+            <Text as="span" variant="bodyMd" fontWeight="medium">{t("产品 / 变体")}</Text>
             <InlineStack gap="300" blockAlign="center">
-              <Button onClick={pickProduct}>{productTitle ? "重新选择" : "选择产品"}</Button>
+              <Button onClick={pickProduct}>{productTitle ? t("重新选择") : t("选择产品")}</Button>
               {productTitle ? <Text as="span" variant="bodyMd">{productTitle}</Text> : null}
             </InlineStack>
             {variants.length > 0 && (
               <Select
-                label="变体"
+                label={t("变体")}
                 options={variants.map((v) => ({ label: v.title, value: v.id }))}
                 value={variantId}
                 onChange={setVariantId}
@@ -160,10 +164,10 @@ export default function NewSubscription() {
             )}
           </BlockStack>
 
-          <TextField label="客户邮箱" type="email" value={email} onChange={setEmail} autoComplete="email" requiredIndicator />
-          <TextField label="客户姓名（可选）" value={name} onChange={setName} autoComplete="off" />
-          <Select label="状态" options={STATUS_OPTIONS} value={status} onChange={setStatus} />
-          <Checkbox label="营销同意" checked={marketing} onChange={setMarketing} />
+          <TextField label={t("客户邮箱")} type="email" value={email} onChange={setEmail} autoComplete="email" requiredIndicator />
+          <TextField label={t("客户姓名（可选）")} value={name} onChange={setName} autoComplete="off" />
+          <Select label={t("状态")} options={STATUS_OPTIONS.map((o) => ({ ...o, label: t(o.label) }))} value={status} onChange={setStatus} />
+          <Checkbox label={t("营销同意")} checked={marketing} onChange={setMarketing} />
 
           {err ? <Banner tone="critical"><p>{err}</p></Banner> : null}
 
@@ -174,7 +178,7 @@ export default function NewSubscription() {
               disabled={!email || !variantId}
               onClick={submit}
             >
-              添加订阅
+              {t("添加订阅")}
             </Button>
           </Box>
         </BlockStack>

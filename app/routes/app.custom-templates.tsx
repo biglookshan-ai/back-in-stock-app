@@ -11,6 +11,7 @@ import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { getSettings } from "../models/subscription.server";
 import { DEFAULT_HEADER, DEFAULT_FOOTER } from "../email-templates.server";
+import { useT, translate, type Lang } from "../i18n";
 import { productCard, CUSTOMER_CARD } from "../email-cards";
 import { EmailEditor } from "../components/EmailEditor";
 
@@ -36,21 +37,23 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const { session } = await authenticate.admin(request);
   const fd = await request.formData();
   const intent = String(fd.get("intent"));
+  const lang: Lang = (await getSettings(session.shop)).uiLanguage === "zh" ? "zh" : "en";
+  const tr = (zh: string) => translate(zh, lang);
   if (intent === "delete") {
     await prisma.customTemplate.deleteMany({ where: { id: String(fd.get("id")), shop: session.shop } });
-    return { ok: true, message: "已删除" };
+    return { ok: true, message: tr("已删除"), deleted: true };
   }
-  const name = String(fd.get("name") ?? "").trim() || "未命名模板";
+  const name = String(fd.get("name") ?? "").trim() || tr("未命名模板");
   const subject = String(fd.get("subject") ?? "");
   const htmlBody = String(fd.get("htmlBody") ?? "");
   const useGlobalShell = fd.get("useGlobalShell") !== "false";
   const id = String(fd.get("id") ?? "");
   if (id) {
     await prisma.customTemplate.updateMany({ where: { id, shop: session.shop }, data: { name, subject, htmlBody, useGlobalShell } });
-    return { ok: true, message: "已保存", savedId: id };
+    return { ok: true, message: tr("已保存"), savedId: id };
   }
   const created = await prisma.customTemplate.create({ data: { shop: session.shop, name, subject, htmlBody, useGlobalShell } });
-  return { ok: true, message: "已创建", savedId: created.id };
+  return { ok: true, message: tr("已创建"), savedId: created.id };
 };
 
 const SAMPLE = {
@@ -84,6 +87,7 @@ export default function CustomTemplates() {
   const fetcher = useFetcher<typeof action>();
   const shopify = useAppBridge();
   const navigate = useNavigate();
+  const t = useT();
 
   const [sel, setSel] = useState<Tpl | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -106,7 +110,7 @@ export default function CustomTemplates() {
     if (fetcher.data.message) shopify.toast.show(fetcher.data.message);
     const savedId = (fetcher.data as any).savedId;
     if (savedId && sel) setSel({ ...sel, id: savedId });
-    if ((fetcher.data as any).message === "已删除") setSel(null);
+    if ((fetcher.data as any).deleted) setSel(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetcher.state, fetcher.data]);
 
@@ -118,10 +122,10 @@ export default function CustomTemplates() {
   const previewVars = { ...SAMPLE, ...brand } as Record<string, string>;
 
   return (
-    <Page backAction={{ content: "返回", onAction: () => navigate("/app") }}>
-      <TitleBar title="自定义邮件模板" />
+    <Page backAction={{ content: t("返回"), onAction: () => navigate("/app") }}>
+      <TitleBar title={t("自定义邮件模板")} />
       <Banner tone="info">
-        <p>这些模板用于<b>手动发送邮件</b>(在「请求列表」筛选客人后群发)。变量同其它模板:<code>{"{{customer_name}} {{product_title}} {{variant_title}} {{product_url}} {{brand_color}}"}</code> 等。</p>
+        <p>{t("这些模板用于手动发送邮件(在「请求列表」筛选客人后群发)。变量同其它模板:")}<code>{"{{customer_name}} {{product_title}} {{variant_title}} {{product_url}} {{brand_color}}"}</code>{t(" 等。")}</p>
       </Banner>
       <Box paddingBlockStart="400">
         <InlineGrid columns={{ xs: 1, md: ["oneThird", "twoThirds"] }} gap="400">
@@ -129,19 +133,19 @@ export default function CustomTemplates() {
           <Card>
             <BlockStack gap="300">
               <InlineStack align="space-between" blockAlign="center">
-                <Text as="h3" variant="headingMd">模板</Text>
-                <Button onClick={newTpl} variant="primary">新建</Button>
+                <Text as="h3" variant="headingMd">{t("模板")}</Text>
+                <Button onClick={newTpl} variant="primary">{t("新建")}</Button>
               </InlineStack>
               {templates.length === 0 ? (
-                <Text as="p" tone="subdued">还没有模板,点「新建」创建一个。</Text>
+                <Text as="p" tone="subdued">{t("还没有模板,点「新建」创建一个。")}</Text>
               ) : (
                 <ResourceList
                   items={templates}
-                  renderItem={(t: Tpl) => (
-                    <ResourceItem id={t.id} onClick={() => setSel(t)}>
-                      <Text as="span" variant="bodyMd" fontWeight="medium">{t.name}</Text>
+                  renderItem={(tpl: Tpl) => (
+                    <ResourceItem id={tpl.id} onClick={() => setSel(tpl)}>
+                      <Text as="span" variant="bodyMd" fontWeight="medium">{tpl.name}</Text>
                       <br />
-                      <Text as="span" variant="bodySm" tone="subdued">{t.subject}</Text>
+                      <Text as="span" variant="bodySm" tone="subdued">{tpl.subject}</Text>
                     </ResourceItem>
                   )}
                 />
@@ -153,40 +157,40 @@ export default function CustomTemplates() {
           {sel ? (
             <Card>
               <BlockStack gap="400">
-                <Text as="h3" variant="headingMd">{isNew ? "新建模板" : "编辑模板"}</Text>
-                <TextField label="模板名称" value={sel.name} onChange={(v) => setSel({ ...sel, name: v })} autoComplete="off" />
+                <Text as="h3" variant="headingMd">{isNew ? t("新建模板") : t("编辑模板")}</Text>
+                <TextField label={t("模板名称")} value={sel.name} onChange={(v) => setSel({ ...sel, name: v })} autoComplete="off" />
                 <Checkbox
-                  label="使用全局页眉/页脚"
+                  label={t("使用全局页眉/页脚")}
                   checked={sel.useGlobalShell}
                   onChange={(v) => setSel({ ...sel, useGlobalShell: v })}
                   helpText={sel.useGlobalShell
-                    ? "下面只写正文，页眉页脚由「页眉页脚」页统一提供。"
-                    : "不使用全局外壳，下面需写完整邮件。"}
+                    ? t("下面只写正文，页眉页脚由「页眉页脚」页统一提供。")
+                    : t("不使用全局外壳，下面需写完整邮件。")}
                 />
-                <TextField label="邮件主题" value={sel.subject} onChange={(v) => setSel({ ...sel, subject: v })} autoComplete="off" />
+                <TextField label={t("邮件主题")} value={sel.subject} onChange={(v) => setSel({ ...sel, subject: v })} autoComplete="off" />
                 <Box>
                   <Text as="span" variant="bodyMd" fontWeight="medium">
-                    {sel.useGlobalShell ? "正文（仅中间内容）" : "正文（完整邮件）"}
+                    {sel.useGlobalShell ? t("正文（仅中间内容）") : t("正文（完整邮件）")}
                   </Text>
                   <Box paddingBlockStart="200">
                     <EmailEditor
                       value={sel.htmlBody}
                       onChange={(v) => setSel({ ...sel, htmlBody: v })}
                       onPickProducts={pickProductCards}
-                      customerCard={{ html: CUSTOMER_CARD, label: "客人订阅的产品（每人各自显示）" }}
+                      customerCard={{ html: CUSTOMER_CARD, label: t("客人订阅的产品（每人各自显示）") }}
                     />
                   </Box>
                 </Box>
                 <InlineStack gap="300">
-                  <Button variant="primary" loading={fetcher.state !== "idle"} onClick={save}>保存</Button>
-                  <Button onClick={() => setPreviewOpen(true)} disabled={!sel.htmlBody}>预览</Button>
-                  {!isNew && <Button tone="critical" onClick={del}>删除</Button>}
+                  <Button variant="primary" loading={fetcher.state !== "idle"} onClick={save}>{t("保存")}</Button>
+                  <Button onClick={() => setPreviewOpen(true)} disabled={!sel.htmlBody}>{t("预览")}</Button>
+                  {!isNew && <Button tone="critical" onClick={del}>{t("删除")}</Button>}
                 </InlineStack>
               </BlockStack>
             </Card>
           ) : (
             <Card>
-              <Box padding="400"><Text as="p" tone="subdued">左侧选一个模板编辑,或点「新建」。</Text></Box>
+              <Box padding="400"><Text as="p" tone="subdued">{t("左侧选一个模板编辑,或点「新建」。")}</Text></Box>
             </Card>
           )}
         </InlineGrid>
@@ -195,8 +199,8 @@ export default function CustomTemplates() {
       <Modal
         open={previewOpen}
         onClose={() => setPreviewOpen(false)}
-        title="邮件预览"
-        primaryAction={{ content: "关闭", onAction: () => setPreviewOpen(false) }}
+        title={t("邮件预览")}
+        primaryAction={{ content: t("关闭"), onAction: () => setPreviewOpen(false) }}
       >
         <Modal.Section>
           <Box borderRadius="200" borderWidth="025" borderColor="border">

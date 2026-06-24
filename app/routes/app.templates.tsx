@@ -30,6 +30,7 @@ import {
 } from "../email-templates.server";
 import { mailer } from "../mailer.server";
 import { getSettings } from "../models/subscription.server";
+import { useT, translate, type Lang } from "../i18n";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -58,6 +59,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const fd = await request.formData();
   const intent = fd.get("intent");
   const type = fd.get("type") as TemplateType;
+  const settings0 = await getSettings(shop);
+  const lang: Lang = settings0.uiLanguage === "zh" ? "zh" : "en";
+  const tr = (zh: string, vars?: Record<string, string | number>) => translate(zh, lang, vars);
 
   if (intent === "reset") {
     const def = DEFAULT_TEMPLATES[type];
@@ -66,7 +70,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       update: { subject: def.subject, htmlBody: def.htmlBody, enabled: true, useGlobalShell: true },
       create: { shop, type, subject: def.subject, htmlBody: def.htmlBody, enabled: true, useGlobalShell: true },
     });
-    return { ok: true, message: "已恢复默认模板", reset: { type, ...def, useGlobalShell: true } };
+    return { ok: true, message: tr("已恢复默认模板"), reset: { type, ...def, useGlobalShell: true } };
   }
 
   const subject = String(fd.get("subject") ?? "");
@@ -80,7 +84,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       update: { subject, htmlBody, enabled, useGlobalShell },
       create: { shop, type, subject, htmlBody, enabled, useGlobalShell },
     });
-    return { ok: true, message: "已保存" };
+    return { ok: true, message: tr("已保存") };
   }
 
   if (intent === "test") {
@@ -116,8 +120,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       fromEmail: settings.fromEmail || `no-reply@${shop}`,
     });
     return res.ok
-      ? { ok: true, message: `测试邮件已发送至 ${to}` }
-      : { ok: false, message: `发送失败：${res.error}` };
+      ? { ok: true, message: tr("测试邮件已发送至 {to}", { to }) }
+      : { ok: false, message: tr("发送失败：{error}", { error: String(res.error) }) };
   }
 
   return { ok: false, message: "unknown intent" };
@@ -163,6 +167,7 @@ export default function Templates() {
   const fetcher = useFetcher<typeof action>();
   const shopify = useAppBridge();
   const navigate = useNavigate();
+  const t = useT();
   const [tab, setTab] = useState(0);
   const [drafts, setDrafts] = useState(() =>
     Object.fromEntries(
@@ -205,18 +210,18 @@ export default function Templates() {
   const previewSubject = renderClient(d.subject, previewVars);
 
   return (
-    <Page backAction={{ content: "返回", onAction: () => navigate("/app") }}>
-      <TitleBar title="自动发送模板" />
+    <Page backAction={{ content: t("返回"), onAction: () => navigate("/app") }}>
+      <TitleBar title={t("自动发送模板")} />
       <Tabs
         selected={tab}
         onSelect={setTab}
-        tabs={templates.map((t) => ({ id: t.type, content: LABELS[t.type as TemplateType] }))}
+        tabs={templates.map((tpl) => ({ id: tpl.type, content: t(LABELS[tpl.type as TemplateType]) }))}
       >
         <Box padding="400">
           <BlockStack gap="400">
             <Banner tone="info">
               <p>
-                变量：<code>{"{{product_title}}"}</code> <code>{"{{variant_title}}"}</code>{" "}
+                {t("变量：")}<code>{"{{product_title}}"}</code> <code>{"{{variant_title}}"}</code>{" "}
                 <code>{"{{product_image}}"}</code> <code>{"{{product_price}}"}</code>{" "}
                 <code>{"{{product_url}}"}</code> <code>{"{{customer_name}}"}</code>{" "}
                 <code>{"{{customer_email}}"}</code> <code>{"{{shop_name}}"}</code>{" "}
@@ -224,10 +229,10 @@ export default function Templates() {
                 <code>{"{{website_url}}"}</code> <code>{"{{company_address}}"}</code>{" "}
                 <code>{"{{support_email}}"}</code> <code>{"{{unsubscribe_url}}"}</code>
                 <br />
-                条件块：<code>{"{{#if product_image}}...{{/if}}"}</code>{" "}
-                <code>{"{{#unless brand_logo}}...{{/unless}}"}</code>（值为空时隐藏/显示）
+                {t("条件块：")}<code>{"{{#if product_image}}...{{/if}}"}</code>{" "}
+                <code>{"{{#unless brand_logo}}...{{/unless}}"}</code>{t("（值为空时隐藏/显示）")}
                 <br />
-                品牌信息（logo/主色/网站/地址）在 <b>设置</b> 页统一配置，模板里用变量自动带入。
+                {t("品牌信息（logo/主色/网站/地址）在 ")}<b>{t("设置")}</b>{t(" 页统一配置，模板里用变量自动带入。")}
               </p>
             </Banner>
 
@@ -236,28 +241,28 @@ export default function Templates() {
               <Card>
                 <BlockStack gap="400">
                   <InlineStack align="space-between" blockAlign="center">
-                    <Text as="h3" variant="headingMd">编辑</Text>
+                    <Text as="h3" variant="headingMd">{t("编辑")}</Text>
                     <Button variant="plain" onClick={() => submit("reset")}>
-                      恢复默认模板
+                      {t("恢复默认模板")}
                     </Button>
                   </InlineStack>
-                  <Checkbox label="启用此邮件" checked={d.enabled} onChange={(v) => setDraft({ enabled: v })} />
+                  <Checkbox label={t("启用此邮件")} checked={d.enabled} onChange={(v) => setDraft({ enabled: v })} />
                   <Checkbox
-                    label="使用全局页眉/页脚"
+                    label={t("使用全局页眉/页脚")}
                     checked={d.useGlobalShell}
                     onChange={(v) => setDraft({ useGlobalShell: v })}
                     helpText={d.useGlobalShell
-                      ? "下面只写正文，顶部 logo 与底部公司信息由「页眉页脚」页统一提供。"
-                      : "不使用全局外壳，下面需写完整邮件（含页眉/页脚）。"}
+                      ? t("下面只写正文，顶部 logo 与底部公司信息由「页眉页脚」页统一提供。")
+                      : t("不使用全局外壳，下面需写完整邮件（含页眉/页脚）。")}
                   />
                   <TextField
-                    label="邮件主题"
+                    label={t("邮件主题")}
                     value={d.subject}
                     onChange={(v) => setDraft({ subject: v })}
                     autoComplete="off"
                   />
                   <TextField
-                    label={d.useGlobalShell ? "邮件正文（HTML，仅中间内容）" : "邮件正文（HTML，完整邮件）"}
+                    label={d.useGlobalShell ? t("邮件正文（HTML，仅中间内容）") : t("邮件正文（HTML，完整邮件）")}
                     value={d.htmlBody}
                     onChange={(v) => setDraft({ htmlBody: v })}
                     multiline={16}
@@ -265,7 +270,7 @@ export default function Templates() {
                   />
                   <InlineStack gap="300">
                     <Button variant="primary" loading={fetcher.state !== "idle"} onClick={() => submit("save")}>
-                      保存
+                      {t("保存")}
                     </Button>
                   </InlineStack>
                 </BlockStack>
@@ -274,9 +279,9 @@ export default function Templates() {
               {/* 实时预览 */}
               <Card>
                 <BlockStack gap="300">
-                  <Text as="h3" variant="headingMd">实时预览</Text>
+                  <Text as="h3" variant="headingMd">{t("实时预览")}</Text>
                   <Text as="p" tone="subdued" variant="bodySm">
-                    主题：{previewSubject}
+                    {t("主题：")}{previewSubject}
                   </Text>
                   <Box borderRadius="200" borderWidth="025" borderColor="border" overflowX="hidden">
                     <iframe
@@ -291,11 +296,11 @@ export default function Templates() {
 
             <Card>
               <BlockStack gap="300">
-                <Text as="h3" variant="headingMd">发送测试邮件</Text>
+                <Text as="h3" variant="headingMd">{t("发送测试邮件")}</Text>
                 <InlineStack gap="300" blockAlign="end">
                   <Box minWidth="280px">
                     <TextField
-                      label="收件邮箱"
+                      label={t("收件邮箱")}
                       type="email"
                       value={testEmail}
                       onChange={setTestEmail}
@@ -303,7 +308,7 @@ export default function Templates() {
                     />
                   </Box>
                   <Button onClick={() => submit("test")} disabled={!testEmail}>
-                    发送测试
+                    {t("发送测试")}
                   </Button>
                 </InlineStack>
               </BlockStack>

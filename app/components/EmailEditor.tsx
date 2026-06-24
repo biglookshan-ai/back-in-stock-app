@@ -5,6 +5,7 @@
 // - 「插入变量」下拉：客人/产品相关变量一键插入；选区保存/恢复，精准落点。
 import { useEffect, useRef, useState } from "react";
 import { Button, ButtonGroup, InlineStack, Popover, ActionList } from "@shopify/polaris";
+import { useT } from "../i18n";
 
 export type PickedCard = { html: string; label: string; thumb?: string };
 
@@ -55,7 +56,7 @@ function hydrate(root: HTMLElement) {
         ? `<span class="bis-card-thumb" style="background-image:url('${escapeAttr(thumb)}')"></span>`
         : `<span class="bis-card-thumb bis-card-thumb-empty">🖼</span>`) +
       `<span class="bis-card-label"></span>` +
-      `<button type="button" class="bis-card-x" title="移除此产品">✕</button>` +
+      `<button type="button" class="bis-card-x" title="Remove">✕</button>` +
       `</span>`;
     (el.querySelector(".bis-card-real") as HTMLElement).innerHTML = real;
     (el.querySelector(".bis-card-label") as HTMLElement).textContent = label;
@@ -107,6 +108,7 @@ export function EmailEditor({
   onPickProducts: () => Promise<PickedCard[]>;
   customerCard?: { html: string; label: string };
 }) {
+  const t = useT();
   const [mode, setMode] = useState<"rich" | "code">("rich");
   const [varOpen, setVarOpen] = useState(false);
   const richRef = useRef<HTMLDivElement>(null);
@@ -159,7 +161,7 @@ export function EmailEditor({
     emitRich();
   };
   const link = () => {
-    const url = window.prompt("链接 URL:", "https://");
+    const url = window.prompt(t("链接 URL:"), "https://");
     if (url) exec("createLink", url);
   };
 
@@ -219,10 +221,10 @@ export function EmailEditor({
   };
 
   const onRichClick = (e: React.MouseEvent) => {
-    const t = e.target as HTMLElement;
-    if (t.closest?.(".bis-card-x")) {
+    const target = e.target as HTMLElement;
+    if (target.closest?.(".bis-card-x")) {
       e.preventDefault();
-      t.closest(".bis-card")?.remove();
+      target.closest(".bis-card")?.remove();
       emitRich();
     }
   };
@@ -232,31 +234,31 @@ export function EmailEditor({
       <div style={{ marginBottom: 8 }}>
         <InlineStack gap="200" blockAlign="center" wrap>
           <ButtonGroup variant="segmented">
-            <Button pressed={mode === "rich"} onClick={() => setMode("rich")}>富文本</Button>
-            <Button pressed={mode === "code"} onClick={() => setMode("code")}>代码</Button>
+            <Button pressed={mode === "rich"} onClick={() => setMode("rich")}>{t("富文本")}</Button>
+            <Button pressed={mode === "code"} onClick={() => setMode("code")}>{t("代码")}</Button>
           </ButtonGroup>
           {mode === "rich" && (
             <ButtonGroup>
-              <Button onClick={() => exec("bold")}>粗体</Button>
-              <Button onClick={() => exec("italic")}>斜体</Button>
-              <Button onClick={() => exec("underline")}>下划线</Button>
-              <Button onClick={() => exec("formatBlock", "H2")}>标题</Button>
-              <Button onClick={() => exec("insertUnorderedList")}>列表</Button>
-              <Button onClick={link}>链接</Button>
+              <Button onClick={() => exec("bold")}>{t("粗体")}</Button>
+              <Button onClick={() => exec("italic")}>{t("斜体")}</Button>
+              <Button onClick={() => exec("underline")}>{t("下划线")}</Button>
+              <Button onClick={() => exec("formatBlock", "H2")}>{t("标题")}</Button>
+              <Button onClick={() => exec("insertUnorderedList")}>{t("列表")}</Button>
+              <Button onClick={link}>{t("插入链接")}</Button>
             </ButtonGroup>
           )}
           <Popover
             active={varOpen}
             onClose={() => setVarOpen(false)}
             activator={
-              <Button disclosure onClick={() => setVarOpen((v) => !v)}>插入变量</Button>
+              <Button disclosure onClick={() => setVarOpen((v) => !v)}>{t("插入变量")}</Button>
             }
           >
             <ActionList
               sections={VAR_GROUPS.map((g) => ({
-                title: g.title,
+                title: t(g.title),
                 items: g.items.map(([label, token]) => ({
-                  content: label,
+                  content: t(label),
                   helpText: token,
                   onAction: () => { insertInline(token); setVarOpen(false); },
                 })),
@@ -265,10 +267,10 @@ export function EmailEditor({
           </Popover>
           {customerCard && (
             <Button onClick={() => insertCards(cardWrapper(customerCard.html, customerCard.label))}>
-              插入客人产品卡
+              {t("插入客人产品卡")}
             </Button>
           )}
-          <Button onClick={pickAndInsert} variant="primary">插入推荐产品卡</Button>
+          <Button onClick={pickAndInsert} variant="primary">{t("插入推荐产品卡")}</Button>
         </InlineStack>
       </div>
 
