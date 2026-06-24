@@ -29,6 +29,7 @@ import prisma from "../db.server";
 import { sendManualEmail, getSettings } from "../models/subscription.server";
 import { DEFAULT_HEADER, DEFAULT_FOOTER } from "../email-templates.server";
 import { resolveStockLocations, getAvailability } from "../models/inventory.server";
+import { useT, translate, type Lang } from "../i18n";
 import { productCard, CUSTOMER_CARD } from "../email-cards";
 import { EmailEditor } from "../components/EmailEditor";
 
@@ -178,20 +179,22 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const { session } = await authenticate.admin(request);
   const fd = await request.formData();
   const intent = String(fd.get("intent"));
+  const lang: Lang = (await getSettings(session.shop)).uiLanguage === "zh" ? "zh" : "en";
+  const tr = (zh: string, vars?: Record<string, string | number>) => translate(zh, lang, vars);
 
   // 发送邮件：发给选中的订阅行
   if (intent === "sendmail") {
     const subject = String(fd.get("subject") ?? "").trim();
     const htmlBody = String(fd.get("htmlBody") ?? "").trim();
-    if (!subject || !htmlBody) return { ok: false, message: "主题和正文不能为空" };
+    if (!subject || !htmlBody) return { ok: false, message: tr("主题和正文不能为空") };
     const ids = String(fd.get("ids") ?? "").split(",").map((s) => s.trim()).filter(Boolean);
-    if (ids.length === 0) return { ok: false, message: "请先勾选收件人" };
+    if (ids.length === 0) return { ok: false, message: tr("请先勾选收件人") };
     const useGlobalShell = fd.get("useGlobalShell") !== "false";
     const subs = await prisma.subscription.findMany({
       where: { shop: session.shop, id: { in: ids } },
     });
     const sent = await sendManualEmail(subs, subject, htmlBody, useGlobalShell);
-    return { ok: true, message: `已发送 ${sent} 封` };
+    return { ok: true, message: tr("已发送 {n} 封", { n: sent }) };
   }
 
   // 某订阅的发信记录列表（不含正文，省流量）
@@ -297,6 +300,7 @@ export default function Requests() {
   const bodyFetcher = useFetcher<{ htmlBody?: string }>();
   const shopify = useAppBridge();
   const navigate = useNavigate();
+  const t = useT();
 
   const [tagEditId, setTagEditId] = useState<string | null>(null);
   const [tagList, setTagList] = useState<string[]>([]); // 编辑中的标签
@@ -441,32 +445,32 @@ export default function Requests() {
 
   return (
     <Page
-      backAction={{ content: "返回", onAction: () => navigate("/app") }}
-      primaryAction={{ content: "手动添加订阅", url: "/app/requests/new" }}
+      backAction={{ content: t("返回"), onAction: () => navigate("/app") }}
+      primaryAction={{ content: t("手动添加订阅"), url: "/app/requests/new" }}
       secondaryActions={[
         {
-          content: selectedResources.length ? `手动发送邮件 (${selectedResources.length})` : "手动发送邮件",
+          content: selectedResources.length ? t("手动发送邮件 ({n})", { n: selectedResources.length }) : t("手动发送邮件"),
           onAction: () => setSendOpen(true),
           disabled: selectedResources.length === 0,
         },
       ]}
     >
-      <TitleBar title="请求列表" />
+      <TitleBar title={t("请求列表")} />
       <Card padding="0">
         <Tabs
           selected={selectedTab}
           onSelect={(i) => setParam("status", STATUS_TABS[i].id)}
-          tabs={STATUS_TABS.map((t) => ({ id: t.id || "all", content: `${t.label} (${counts[t.id] ?? 0})` }))}
+          tabs={STATUS_TABS.map((tab) => ({ id: tab.id || "all", content: `${t(tab.label)} (${counts[tab.id] ?? 0})` }))}
         >
           <Box padding="300">
             <InlineStack gap="300" align="space-between" blockAlign="center">
               <Box maxWidth="280px" minWidth="200px">
-                <TextField label="搜索" labelHidden placeholder="邮箱 / 姓名 / 商品 / barcode"
+                <TextField label={t("搜索")} labelHidden placeholder={t("邮箱 / 姓名 / 商品 / barcode")}
                   value={searchInput} onChange={setSearchInput} clearButton onClearButtonClick={() => setSearchInput("")} autoComplete="off" />
               </Box>
               <InlineStack gap="200">
-                <Button onClick={() => exportCsv("view")}>导出当前筛选</Button>
-                <Button onClick={() => exportCsv("all")}>导出全部</Button>
+                <Button onClick={() => exportCsv("view")}>{t("导出当前筛选")}</Button>
+                <Button onClick={() => exportCsv("all")}>{t("导出全部")}</Button>
               </InlineStack>
             </InlineStack>
 
@@ -476,37 +480,37 @@ export default function Requests() {
                 <Box minWidth="160px">
                   <Select label="Newsletter" labelInline
                     options={[
-                      { label: "全部", value: "" },
-                      { label: "已订阅", value: "yes" },
-                      { label: "未订阅", value: "no" },
+                      { label: t("全部"), value: "" },
+                      { label: t("已订阅"), value: "yes" },
+                      { label: t("未订阅"), value: "no" },
                     ]}
                     value={get("marketing")} onChange={(v) => setParam("marketing", v)} />
                 </Box>
                 <Box minWidth="160px">
-                  <Select label="标签" labelInline
-                    options={[{ label: "全部标签", value: "" }, ...allTags.map((t) => ({ label: t, value: t }))]}
+                  <Select label={t("标签")} labelInline
+                    options={[{ label: t("全部标签"), value: "" }, ...allTags.map((tag) => ({ label: tag, value: tag }))]}
                     value={get("tag")} onChange={(v) => setParam("tag", v)} />
                 </Box>
                 <Box minWidth="150px">
-                  <TextField label="从" type="date"
+                  <TextField label={t("从")} type="date"
                     value={get("from")} onChange={(v) => setParam("from", v)} autoComplete="off" />
                 </Box>
                 <Box minWidth="150px">
-                  <TextField label="到" type="date"
+                  <TextField label={t("到")} type="date"
                     value={get("to")} onChange={(v) => setParam("to", v)} autoComplete="off" />
                 </Box>
               </InlineStack>
             </Box>
             <Box paddingBlockStart="200">
               <Text as="span" variant="bodySm" tone="subdued">
-                「可用库存」列：UK = {stockNames.shopName} · EW = {stockNames.ewName}（实时 Available）
+                {t("「可用库存」列：UK = {shop} · EW = {ew}（实时 Available）", { shop: stockNames.shopName, ew: stockNames.ewName })}
               </Text>
             </Box>
           </Box>
 
           {rows.length === 0 ? (
-            <EmptyState heading="没有符合条件的请求" image="">
-              <p>调整筛选或等待客户订阅。</p>
+            <EmptyState heading={t("没有符合条件的请求")} image="">
+              <p>{t("调整筛选或等待客户订阅。")}</p>
             </EmptyState>
           ) : (
             <IndexTable
@@ -514,8 +518,8 @@ export default function Requests() {
               selectedItemsCount={allResourcesSelected ? "All" : selectedResources.length}
               onSelectionChange={handleSelectionChange}
               headings={[
-                { title: "商品 / 变体" }, { title: "客户" }, { title: "可用库存" },
-                { title: "状态" }, { title: "日期" }, { title: "操作", alignment: "end" },
+                { title: t("商品 / 变体") }, { title: t("客户") }, { title: t("可用库存") },
+                { title: t("状态") }, { title: t("日期") }, { title: t("操作"), alignment: "end" },
               ]}
             >
               {rows.map((r, i) => (
@@ -531,7 +535,7 @@ export default function Requests() {
                       {r.tags ? (
                         <Box paddingBlockStart="100">
                           <InlineStack gap="100" wrap>
-                            {r.tags.split(",").map((t) => <Badge key={t} size="small">{t}</Badge>)}
+                            {r.tags.split(",").map((tg) => <Badge key={tg} size="small">{tg}</Badge>)}
                           </InlineStack>
                         </Box>
                       ) : null}
@@ -554,15 +558,15 @@ export default function Requests() {
                   </IndexTable.Cell>
                   <IndexTable.Cell>
                     <BlockStack gap="100">
-                      <Badge tone={TONE[r.status]}>{LABEL[r.status] ?? r.status}</Badge>
+                      <Badge tone={TONE[r.status]}>{t(LABEL[r.status] ?? r.status)}</Badge>
                       {r.lastSend ? (
                         <InlineStack gap="100" blockAlign="center" wrap={false}>
                           <Badge size="small" tone={MAIL_KIND[r.lastSend.type]?.auto ? "info" : undefined}>
-                            {MAIL_KIND[r.lastSend.type]?.auto ? "自动" : "手动"}
+                            {MAIL_KIND[r.lastSend.type]?.auto ? t("自动") : t("手动")}
                           </Badge>
-                          <span title={r.lastSend.status === "FAILED" ? (r.lastSend.error ?? "发送失败") : "发送成功"}>
+                          <span title={r.lastSend.status === "FAILED" ? (r.lastSend.error ?? t("✗ 失败")) : t("✓ 已发送")}>
                             <Text as="span" variant="bodySm" tone={r.lastSend.status === "SENT" ? "success" : "critical"}>
-                              {r.lastSend.status === "SENT" ? "✓ 已发送" : "✗ 失败"}
+                              {r.lastSend.status === "SENT" ? t("✓ 已发送") : t("✗ 失败")}
                             </Text>
                           </span>
                         </InlineStack>
@@ -574,17 +578,17 @@ export default function Requests() {
                   </IndexTable.Cell>
                   <IndexTable.Cell>
                     <InlineStack gap="300" align="end" blockAlign="center" wrap={false}>
-                      <Button variant="plain" onClick={() => openLogs(r.id)}>记录</Button>
-                      <Button variant="plain" onClick={() => openTag(r)}>标签</Button>
+                      <Button variant="plain" onClick={() => openLogs(r.id)}>{t("记录")}</Button>
+                      <Button variant="plain" onClick={() => openTag(r)}>{t("标签")}</Button>
                       {r.status === "ARCHIVED" ? (
                         <>
-                          <Button variant="plain" onClick={() => act("restore", r.id)}>恢复</Button>
-                          <Button variant="plain" tone="critical" onClick={() => act("delete", r.id)}>删除</Button>
+                          <Button variant="plain" onClick={() => act("restore", r.id)}>{t("恢复")}</Button>
+                          <Button variant="plain" tone="critical" onClick={() => act("delete", r.id)}>{t("删除")}</Button>
                         </>
                       ) : (
                         <>
-                          {r.status !== "CANCELLED" && <Button variant="plain" onClick={() => act("cancel", r.id)}>取消</Button>}
-                          <Button variant="plain" onClick={() => act("archive", r.id)}>归档</Button>
+                          {r.status !== "CANCELLED" && <Button variant="plain" onClick={() => act("cancel", r.id)}>{t("取消")}</Button>}
+                          <Button variant="plain" onClick={() => act("archive", r.id)}>{t("归档")}</Button>
                         </>
                       )}
                     </InlineStack>
@@ -599,9 +603,9 @@ export default function Requests() {
       <Modal
         open={tagEditId !== null}
         onClose={() => setTagEditId(null)}
-        title="编辑标签"
-        primaryAction={{ content: "保存", onAction: saveTag }}
-        secondaryActions={[{ content: "取消", onAction: () => setTagEditId(null) }]}
+        title={t("编辑标签")}
+        primaryAction={{ content: t("保存"), onAction: saveTag }}
+        secondaryActions={[{ content: t("取消"), onAction: () => setTagEditId(null) }]}
       >
         <Modal.Section>
           <BlockStack gap="300">
@@ -609,11 +613,11 @@ export default function Requests() {
               allowMultiple
               activator={
                 <Combobox.TextField
-                  label="标签"
+                  label={t("标签")}
                   labelHidden
                   value={tagInput}
                   onChange={setTagInput}
-                  placeholder="搜索已有标签，或输入新标签后从下拉点「新增」"
+                  placeholder={t("搜索已有标签，或输入新标签后从下拉点「新增」")}
                   autoComplete="off"
                 />
               }
@@ -626,23 +630,23 @@ export default function Requests() {
                     setTagInput("");
                   }}
                 >
-                  {tagOptions.map((t) => (
-                    <Listbox.Option key={t} value={t}>{t}</Listbox.Option>
+                  {tagOptions.map((opt) => (
+                    <Listbox.Option key={opt} value={opt}>{opt}</Listbox.Option>
                   ))}
                   {canCreateTag ? (
-                    <Listbox.Action value="__create__">{`新增标签 “${tagInput.trim()}”`}</Listbox.Action>
+                    <Listbox.Action value="__create__">{t("新增标签 “{name}”", { name: tagInput.trim() })}</Listbox.Action>
                   ) : null}
                 </Listbox>
               ) : null}
             </Combobox>
             {tagList.length > 0 ? (
               <InlineStack gap="200" wrap>
-                {tagList.map((t) => (
-                  <Tag key={t} onRemove={() => setTagList(tagList.filter((x) => x !== t))}>{t}</Tag>
+                {tagList.map((tg) => (
+                  <Tag key={tg} onRemove={() => setTagList(tagList.filter((x) => x !== tg))}>{tg}</Tag>
                 ))}
               </InlineStack>
             ) : (
-              <Text as="p" tone="subdued" variant="bodySm">还没有标签。从上面选已有标签，或输入新标签。</Text>
+              <Text as="p" tone="subdued" variant="bodySm">{t("还没有标签。从上面选已有标签，或输入新标签。")}</Text>
             )}
           </BlockStack>
         </Modal.Section>
@@ -652,11 +656,11 @@ export default function Requests() {
       <Modal
         open={logSubId !== null}
         onClose={() => { setLogSubId(null); setPreviewLogId(null); }}
-        title={previewLogId ? "邮件内容预览" : "发信记录"}
+        title={previewLogId ? t("邮件内容预览") : t("发信记录")}
         primaryAction={
           previewLogId
-            ? { content: "← 返回记录", onAction: () => setPreviewLogId(null) }
-            : { content: "关闭", onAction: () => { setLogSubId(null); } }
+            ? { content: t("← 返回记录"), onAction: () => setPreviewLogId(null) }
+            : { content: t("关闭"), onAction: () => { setLogSubId(null); } }
         }
       >
         <Modal.Section>
@@ -664,12 +668,12 @@ export default function Requests() {
             <Box borderRadius="200" borderWidth="025" borderColor="border">
               <iframe
                 title="maillog-preview"
-                srcDoc={bodyFetcher.state !== "idle" ? "<p style='font-family:sans-serif;padding:16px;color:#888'>加载中…</p>" : (bodyFetcher.data?.htmlBody || "<p style='font-family:sans-serif;padding:16px;color:#888'>（无存档内容）</p>")}
+                srcDoc={bodyFetcher.state !== "idle" ? `<p style='font-family:sans-serif;padding:16px;color:#888'>${t("加载中…")}</p>` : (bodyFetcher.data?.htmlBody || `<p style='font-family:sans-serif;padding:16px;color:#888'>${t("（无存档内容）")}</p>`)}
                 style={{ width: "100%", height: 480, border: "none", display: "block" }}
               />
             </Box>
           ) : logFetcher.state !== "idle" ? (
-            <Text as="p" tone="subdued">加载中…</Text>
+            <Text as="p" tone="subdued">{t("加载中…")}</Text>
           ) : logFetcher.data?.logs && logFetcher.data.logs.length > 0 ? (
             <BlockStack gap="300">
               {logFetcher.data.logs.map((l) => {
@@ -680,18 +684,18 @@ export default function Requests() {
                     <InlineStack align="space-between" blockAlign="center" wrap={false}>
                       <BlockStack gap="050">
                         <InlineStack gap="200" blockAlign="center" wrap>
-                          <Badge size="small" tone={kind?.auto ? "info" : undefined}>{kind?.auto ? "自动" : "手动"}</Badge>
-                          <Text as="span" variant="bodyMd" fontWeight="medium">{kind?.label ?? l.type}</Text>
-                          <Text as="span" variant="bodySm" tone={ok ? "success" : "critical"}>{ok ? "✓ 已发送" : "✗ 失败"}</Text>
+                          <Badge size="small" tone={kind?.auto ? "info" : undefined}>{kind?.auto ? t("自动") : t("手动")}</Badge>
+                          <Text as="span" variant="bodyMd" fontWeight="medium">{t(kind?.label ?? l.type)}</Text>
+                          <Text as="span" variant="bodySm" tone={ok ? "success" : "critical"}>{ok ? t("✓ 已发送") : t("✗ 失败")}</Text>
                         </InlineStack>
                         <Text as="span" variant="bodySm" tone="subdued">
                           {new Date(l.sentAt).toLocaleString()} · {l.toEmail}
                         </Text>
-                        {l.subject ? <Text as="span" variant="bodySm">主题：{l.subject}</Text> : null}
-                        {!ok && l.error ? <Text as="span" variant="bodySm" tone="critical">原因：{l.error}</Text> : null}
+                        {l.subject ? <Text as="span" variant="bodySm">{t("主题：")}{l.subject}</Text> : null}
+                        {!ok && l.error ? <Text as="span" variant="bodySm" tone="critical">{t("原因：")}{l.error}</Text> : null}
                       </BlockStack>
                       {l.hasBody ? (
-                        <Button variant="plain" onClick={() => previewLog(l.id)}>预览</Button>
+                        <Button variant="plain" onClick={() => previewLog(l.id)}>{t("预览")}</Button>
                       ) : null}
                     </InlineStack>
                   </Box>
@@ -699,7 +703,7 @@ export default function Requests() {
               })}
             </BlockStack>
           ) : (
-            <Text as="p" tone="subdued">这条订阅还没有发信记录。</Text>
+            <Text as="p" tone="subdued">{t("这条订阅还没有发信记录。")}</Text>
           )}
         </Modal.Section>
       </Modal>
@@ -708,12 +712,12 @@ export default function Requests() {
       <Modal
         open={sendOpen}
         onClose={() => { setSendOpen(false); setPreviewMode(false); }}
-        title={previewMode ? "邮件预览" : `发送邮件（已选 ${selectedResources.length} 人）`}
+        title={previewMode ? t("邮件预览") : t("发送邮件（已选 {n} 人）", { n: selectedResources.length })}
         primaryAction={
           previewMode
-            ? { content: "← 返回编辑", onAction: () => setPreviewMode(false) }
+            ? { content: t("← 返回编辑"), onAction: () => setPreviewMode(false) }
             : {
-                content: `发送给 ${selectedResources.length} 人`,
+                content: t("发送给 {n} 人", { n: selectedResources.length }),
                 onAction: doSend,
                 loading: fetcher.state !== "idle",
                 disabled: !sendSubject || !sendBody || selectedResources.length === 0,
@@ -721,8 +725,8 @@ export default function Requests() {
         }
         secondaryActions={
           previewMode
-            ? [{ content: "发送", onAction: doSend, disabled: !sendSubject || !sendBody || selectedResources.length === 0 }]
-            : [{ content: "预览", onAction: () => setPreviewMode(true), disabled: !sendBody }, { content: "取消", onAction: () => setSendOpen(false) }]
+            ? [{ content: t("发送"), onAction: doSend, disabled: !sendSubject || !sendBody || selectedResources.length === 0 }]
+            : [{ content: t("预览"), onAction: () => setPreviewMode(true), disabled: !sendBody }, { content: t("取消"), onAction: () => setSendOpen(false) }]
         }
       >
         <Modal.Section>
@@ -730,7 +734,7 @@ export default function Requests() {
             <BlockStack gap="200">
               {firstSel && (
                 <Text as="p" tone="subdued" variant="bodySm">
-                  预览以勾选的第一位客人为例：<b>{firstSel.customerName || firstSel.email}</b> 订阅了「{firstSel.productTitle}{firstSel.variantTitle && firstSel.variantTitle !== "Default Title" ? ` / ${firstSel.variantTitle}` : ""}」。每位收件人都会替换成自己订阅的产品。
+                  {t("预览以勾选的第一位客人为例：")}<b>{firstSel.customerName || firstSel.email}</b>{t(" 订阅了「")}{firstSel.productTitle}{firstSel.variantTitle && firstSel.variantTitle !== "Default Title" ? ` / ${firstSel.variantTitle}` : ""}{t("」。每位收件人都会替换成自己订阅的产品。")}
                 </Text>
               )}
               <Box borderRadius="200" borderWidth="025" borderColor="border">
@@ -741,28 +745,28 @@ export default function Requests() {
           ) : (
             <BlockStack gap="300">
               <Text as="p" tone="subdued" variant="bodySm">
-                发送给<b>勾选</b>的客人。富文本/代码可切换;插入产品卡到光标处;「预览」看效果。
+                {t("发送给勾选的客人。富文本/代码可切换;插入产品卡到光标处;「预览」看效果。")}
               </Text>
               <Checkbox
-                label="使用全局页眉/页脚（顶部 logo + 底部公司信息）"
+                label={t("使用全局页眉/页脚（顶部 logo + 底部公司信息）")}
                 checked={sendShell}
                 onChange={setSendShell}
-                helpText="勾选时只写正文，页眉页脚由「页眉页脚」页统一提供。"
+                helpText={t("勾选时只写正文，页眉页脚由「页眉页脚」页统一提供。")}
               />
               <Select
-                label="选择模板（可选）"
+                label={t("选择模板（可选）")}
                 options={[
-                  { label: "— 空白 / 自己写 —", value: "" },
-                  ...customTemplates.map((t) => ({ label: t.name, value: t.id })),
+                  { label: t("— 空白 / 自己写 —"), value: "" },
+                  ...customTemplates.map((ct) => ({ label: ct.name, value: ct.id })),
                 ]}
                 value={sendTplId}
                 onChange={pickSendTpl}
-                helpText="模板在「自定义邮件模板」页管理。选了可继续编辑。"
+                helpText={t("模板在「自定义邮件模板」页管理。选了可继续编辑。")}
               />
-              <TextField label="主题" value={sendSubject} onChange={setSendSubject} autoComplete="off" />
-              <EmailEditor value={sendBody} onChange={setSendBody} onPickProducts={pickProductCards} customerCard={{ html: CUSTOMER_CARD, label: "客人订阅的产品（每人各自显示）" }} />
+              <TextField label={t("主题")} value={sendSubject} onChange={setSendSubject} autoComplete="off" />
+              <EmailEditor value={sendBody} onChange={setSendBody} onPickProducts={pickProductCards} customerCard={{ html: CUSTOMER_CARD, label: t("客人订阅的产品（每人各自显示）") }} />
               <Text as="p" tone="subdued" variant="bodySm">
-                变量:{"{{customer_name}} {{product_title}} {{product_image}} {{product_price}} {{product_url}} {{unsubscribe_url}}"}（每人按自己订阅的商品渲染）。
+                {t("变量:{vars}（每人按自己订阅的商品渲染）。", { vars: "{{customer_name}} {{product_title}} {{product_image}} {{product_price}} {{product_url}} {{unsubscribe_url}}" })}
               </Text>
             </BlockStack>
           )}
