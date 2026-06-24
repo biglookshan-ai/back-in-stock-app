@@ -170,6 +170,46 @@ const DICT: Record<string, string> = {
   "订阅确认": "Subscription confirmation",
   "手动发送": "Manual send",
   "客人订阅的产品（每人各自显示）": "Customer's subscribed product (shown per recipient)",
+
+  // ── 产品订阅页 ──────────────────────────────────────────────────
+  "按产品": "By product",
+  "按变体 / Barcode": "By variant / barcode",
+  "barcode / 产品 / 变体": "barcode / product / variant",
+  "产品名称": "Product name",
+  "最后请求": "Last request",
+  "当前等待": "Currently waiting",
+  "历史总请求": "Total requests",
+  "Barcode": "Barcode",
+  "UK 可用": "UK avail.",
+  "EW 可用": "EW avail.",
+  "总数": "Total",
+  "链接": "Links",
+  "前台 ↗": "Storefront ↗",
+  "后台 ↗": "Admin ↗",
+  "库存简写：UK = {shop} · EW = {ew}（实时 Available）": "Stock abbreviations: UK = {shop} · EW = {ew} (live Available)",
+  "客户在缺货商品页订阅后，这里会按{kind}汇总需求。": "After customers subscribe on out-of-stock product pages, demand is summarised here by {kind}.",
+  "变体 / barcode": "variant / barcode",
+  "产品": "product",
+  "还没有数据": "No data yet",
+  // 产品详情页
+  "该产品暂无订阅": "No subscriptions for this product yet",
+  "返回产品订阅": "Back to products",
+  "订阅日期": "Subscribed",
+  "订阅时间": "Subscribed at",
+  "{n} 条订阅": "{n} subscription(s)",
+
+  // ── 订阅者页 ────────────────────────────────────────────────────
+  "订阅者列表": "Subscribers",
+  "显示 {shown} 共 {total} 位订阅者": "Showing {shown} of {total} subscribers",
+  "导出列表": "Export list",
+  "导出明细": "Export details",
+  "姓名": "Name",
+  "邮箱": "Email",
+  "Newsletter": "Newsletter",
+  "订阅数": "Subscriptions",
+  "最近订阅": "Last subscribed",
+  "还没有订阅者": "No subscribers yet",
+  "查看": "View",
 };
 
 export function translate(zh: string, lang: Lang, vars?: Record<string, string | number>): string {

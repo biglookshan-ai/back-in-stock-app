@@ -9,6 +9,7 @@ import { TitleBar } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { resolveStockLocations, getAvailability } from "../models/inventory.server";
+import { useT } from "../i18n";
 
 type Row = {
   id: string;
@@ -142,6 +143,7 @@ export default function Products() {
   const { view, sort, q, rows, stockNames } = useLoaderData<typeof loader>();
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
+  const t = useT();
 
   const setParam = (key: string, value: string) => {
     const next = new URLSearchParams(params);
@@ -151,32 +153,32 @@ export default function Products() {
   };
 
   return (
-    <Page backAction={{ content: "返回", onAction: () => navigate("/app") }}>
-      <TitleBar title="产品订阅" />
+    <Page backAction={{ content: t("返回"), onAction: () => navigate("/app") }}>
+      <TitleBar title={t("产品订阅")} />
       <Card padding="0">
         <Box padding="300">
           <InlineStack gap="300" align="space-between" blockAlign="center">
             <ButtonGroup variant="segmented">
-              <Button pressed={view === "product"} onClick={() => setParam("view", "")}>按产品</Button>
-              <Button pressed={view === "variant"} onClick={() => setParam("view", "variant")}>按变体 / Barcode</Button>
+              <Button pressed={view === "product"} onClick={() => setParam("view", "")}>{t("按产品")}</Button>
+              <Button pressed={view === "variant"} onClick={() => setParam("view", "variant")}>{t("按变体 / Barcode")}</Button>
             </ButtonGroup>
             <InlineStack gap="300" blockAlign="center">
               <Box minWidth="200px">
                 <TextField
-                  label="搜索" labelHidden
-                  placeholder={view === "variant" ? "barcode / 产品 / 变体" : "产品名称"}
+                  label={t("搜索")} labelHidden
+                  placeholder={view === "variant" ? t("barcode / 产品 / 变体") : t("产品名称")}
                   value={q} onChange={(v) => setParam("q", v)}
                   clearButton onClearButtonClick={() => setParam("q", "")} autoComplete="off"
                 />
               </Box>
               <Box minWidth="160px">
                 <Select
-                  label="排序" labelInline
+                  label={t("排序")} labelInline
                   options={[
-                    { label: "最后请求", value: "last" },
-                    { label: "产品名称", value: "name" },
-                    { label: "当前等待", value: "active" },
-                    { label: "历史总请求", value: "total" },
+                    { label: t("最后请求"), value: "last" },
+                    { label: t("产品名称"), value: "name" },
+                    { label: t("当前等待"), value: "active" },
+                    { label: t("历史总请求"), value: "total" },
                   ]}
                   value={sort} onChange={(v) => setParam("sort", v)}
                 />
@@ -186,24 +188,24 @@ export default function Products() {
           {view === "variant" && (
             <Box paddingBlockStart="200">
               <Text as="span" variant="bodySm" tone="subdued">
-                库存简写：UK = {stockNames.shopName} · EW = {stockNames.ewName}（实时 Available）
+                {t("库存简写：UK = {shop} · EW = {ew}（实时 Available）", { shop: stockNames.shopName, ew: stockNames.ewName })}
               </Text>
             </Box>
           )}
         </Box>
 
         {rows.length === 0 ? (
-          <EmptyState heading="还没有数据" image="">
-            <p>客户在缺货商品页订阅后，这里会按{view === "variant" ? "变体 / barcode" : "产品"}汇总需求。</p>
+          <EmptyState heading={t("还没有数据")} image="">
+            <p>{t("客户在缺货商品页订阅后，这里会按{kind}汇总需求。", { kind: view === "variant" ? t("变体 / barcode") : t("产品") })}</p>
           </EmptyState>
         ) : view === "variant" ? (
           <IndexTable
             itemCount={rows.length}
             selectable={false}
             headings={[
-              { title: "产品 / 变体" }, { title: "Barcode" },
-              { title: "UK 可用" }, { title: "EW 可用" },
-              { title: "等待中" }, { title: "总数" }, { title: "最后请求" }, { title: "链接" },
+              { title: t("产品 / 变体") }, { title: t("Barcode") },
+              { title: t("UK 可用") }, { title: t("EW 可用") },
+              { title: t("等待中") }, { title: t("总数") }, { title: t("最后请求") }, { title: t("链接") },
             ]}
           >
             {rows.map((r, i) => (
@@ -223,8 +225,8 @@ export default function Products() {
                 <IndexTable.Cell>{fmtDate(r.last)}</IndexTable.Cell>
                 <IndexTable.Cell>
                   <InlineStack gap="300">
-                    <Link url={r.storefrontUrl!} target="_blank">前台 ↗</Link>
-                    <Link url={r.adminUrl!} target="_blank">后台 ↗</Link>
+                    <Link url={r.storefrontUrl!} target="_blank">{t("前台 ↗")}</Link>
+                    <Link url={r.adminUrl!} target="_blank">{t("后台 ↗")}</Link>
                   </InlineStack>
                 </IndexTable.Cell>
               </IndexTable.Row>
@@ -235,7 +237,7 @@ export default function Products() {
             itemCount={rows.length}
             selectable={false}
             headings={[
-              { title: "产品" }, { title: "当前等待" }, { title: "最后请求" }, { title: "历史总请求" },
+              { title: t("商品") }, { title: t("当前等待") }, { title: t("最后请求") }, { title: t("历史总请求") },
             ]}
           >
             {rows.map((r, i) => (
