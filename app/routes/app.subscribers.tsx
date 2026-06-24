@@ -16,6 +16,7 @@ import {
 import { TitleBar } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
+import { useT } from "../i18n";
 
 interface Subscriber {
   email: string;
@@ -108,6 +109,7 @@ export default function Subscribers() {
 
   const fetcher = useFetcher<{ csv?: string; filename?: string }>();
   const navigate = useNavigate();
+  const t = useT();
   useEffect(() => {
     if (fetcher.state !== "idle" || !fetcher.data?.csv) return;
     const a = document.createElement("a");
@@ -121,35 +123,35 @@ export default function Subscribers() {
     fetcher.submit({ mode }, { method: "POST" });
 
   return (
-    <Page backAction={{ content: "返回", onAction: () => navigate("/app") }}>
-      <TitleBar title="订阅者列表" />
+    <Page backAction={{ content: t("返回"), onAction: () => navigate("/app") }}>
+      <TitleBar title={t("订阅者列表")} />
       <Card padding="0">
         <Box padding="400">
           <InlineStack align="space-between" blockAlign="center">
             <Text as="span" variant="bodyMd">
-              显示 {subscribers.length} 共 {totalCount} 位订阅者
+              {t("显示 {shown} 共 {total} 位订阅者", { shown: subscribers.length, total: totalCount })}
             </Text>
             <InlineStack gap="200">
-              <Button onClick={() => exportCsv("list")}>导出列表</Button>
-              <Button onClick={() => exportCsv("details")} variant="primary">导出详情</Button>
+              <Button onClick={() => exportCsv("list")}>{t("导出列表")}</Button>
+              <Button onClick={() => exportCsv("details")} variant="primary">{t("导出详情")}</Button>
             </InlineStack>
           </InlineStack>
         </Box>
 
         {subscribers.length === 0 ? (
-          <EmptyState heading="还没有订阅者" image="">
-            <p>客户订阅后这里会按人汇总。</p>
+          <EmptyState heading={t("还没有订阅者")} image="">
+            <p>{t("客户订阅后这里会按人汇总。")}</p>
           </EmptyState>
         ) : (
           <IndexTable
             itemCount={subscribers.length}
             selectable={false}
             headings={[
-              { title: "电子邮件" },
-              { title: "姓名" },
-              { title: "营销" },
-              { title: "首次请求" },
-              { title: "总请求数" },
+              { title: t("电子邮件") },
+              { title: t("姓名") },
+              { title: t("营销") },
+              { title: t("首次请求") },
+              { title: t("总请求数") },
             ]}
           >
             {subscribers.map((s, i) => (

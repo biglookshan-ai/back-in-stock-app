@@ -210,6 +210,15 @@ const DICT: Record<string, string> = {
   "最近订阅": "Last subscribed",
   "还没有订阅者": "No subscribers yet",
   "查看": "View",
+  "导出详情": "Export details",
+  "客户订阅后这里会按人汇总。": "Once customers subscribe, they are grouped here by person.",
+  "电子邮件": "Email",
+  "营销": "Marketing",
+  "首次请求": "First request",
+  "总请求数": "Total requests",
+  // 订阅者详情
+  "返回订阅者列表": "Back to subscribers",
+  "该客人暂无订阅": "This customer has no subscriptions yet",
 };
 
 export function translate(zh: string, lang: Lang, vars?: Record<string, string | number>): string {

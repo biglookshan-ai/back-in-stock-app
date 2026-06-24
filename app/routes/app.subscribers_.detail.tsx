@@ -14,6 +14,7 @@ import {
 import { TitleBar } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
+import { useT } from "../i18n";
 
 const TONE: Record<string, "info" | "success" | "attention" | "critical"> = {
   ACTIVE: "attention",
@@ -61,30 +62,31 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
 export default function SubscriberDetail() {
   const { email, name, rows } = useLoaderData<typeof loader>();
+  const t = useT();
 
   return (
     <Page
-      backAction={{ content: "订阅者", url: "/app/subscribers" }}
+      backAction={{ content: t("订阅者"), url: "/app/subscribers" }}
       title={email}
-      subtitle={name ? `${name} · ${rows.length} 条订阅` : `${rows.length} 条订阅`}
+      subtitle={name ? `${name} · ${t("{n} 条订阅", { n: rows.length })}` : t("{n} 条订阅", { n: rows.length })}
     >
-      <TitleBar title="订阅者详情" />
+      <TitleBar title={t("订阅者详情")} />
       <Card padding="0">
         {rows.length === 0 ? (
-          <EmptyState heading="该客人暂无订阅" image="">
-            <p><Link to="/app/subscribers">返回订阅者列表</Link></p>
+          <EmptyState heading={t("该客人暂无订阅")} image="">
+            <p><Link to="/app/subscribers">{t("返回订阅者列表")}</Link></p>
           </EmptyState>
         ) : (
           <IndexTable
             itemCount={rows.length}
             selectable={false}
             headings={[
-              { title: "产品" },
-              { title: "变体" },
-              { title: "Barcode" },
-              { title: "状态" },
-              { title: "订阅时间" },
-              { title: "链接" },
+              { title: t("商品") },
+              { title: t("变体") },
+              { title: t("Barcode") },
+              { title: t("状态") },
+              { title: t("订阅时间") },
+              { title: t("链接") },
             ]}
           >
             {rows.map((r, i) => (
@@ -95,13 +97,13 @@ export default function SubscriberDetail() {
                 <IndexTable.Cell>{r.variantTitle}</IndexTable.Cell>
                 <IndexTable.Cell>{r.barcode ?? "—"}</IndexTable.Cell>
                 <IndexTable.Cell>
-                  <Badge tone={TONE[r.status] ?? "info"}>{LABEL[r.status] ?? r.status}</Badge>
+                  <Badge tone={TONE[r.status] ?? "info"}>{t(LABEL[r.status] ?? r.status)}</Badge>
                 </IndexTable.Cell>
                 <IndexTable.Cell>{new Date(r.createdAt).toLocaleString()}</IndexTable.Cell>
                 <IndexTable.Cell>
                   <InlineStack gap="300">
-                    <PolarisLink url={r.storefrontUrl} target="_blank">前台 ↗</PolarisLink>
-                    <PolarisLink url={r.adminUrl} target="_blank">后台 ↗</PolarisLink>
+                    <PolarisLink url={r.storefrontUrl} target="_blank">{t("前台 ↗")}</PolarisLink>
+                    <PolarisLink url={r.adminUrl} target="_blank">{t("后台 ↗")}</PolarisLink>
                   </InlineStack>
                 </IndexTable.Cell>
               </IndexTable.Row>
