@@ -54,6 +54,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       showWhenPreorder: fd.get("showWhenPreorder") === "true",
       fromName: String(fd.get("fromName") ?? ""),
       fromEmail: String(fd.get("fromEmail") ?? ""),
+      autoConfirmEnabled: fd.get("autoConfirmEnabled") === "true",
+      autoRestockEnabled: fd.get("autoRestockEnabled") === "true",
       minStockThreshold: Math.max(0, parseInt(String(fd.get("minStockThreshold") ?? "1"), 10) || 0),
       notifyAtZeroIfContinueSelling: fd.get("notifyAtZeroIfContinueSelling") === "true",
       displayLocationIds: String(fd.get("displayLocationIds") ?? ""),
@@ -97,6 +99,8 @@ export default function SettingsPage() {
         showWhenPreorder: String(s.showWhenPreorder),
         fromName: s.fromName,
         fromEmail: s.fromEmail,
+        autoConfirmEnabled: String(s.autoConfirmEnabled),
+        autoRestockEnabled: String(s.autoRestockEnabled),
         minStockThreshold: String(s.minStockThreshold),
         notifyAtZeroIfContinueSelling: String(s.notifyAtZeroIfContinueSelling),
         displayLocationIds: locs.join(","),
@@ -143,6 +147,25 @@ export default function SettingsPage() {
               checked={s.showWhenPreorder}
               onChange={(v) => setS({ ...s, showWhenPreorder: v })}
             />
+          </BlockStack>
+        </Card>
+
+        <Card>
+          <BlockStack gap="400">
+            <Text as="h2" variant="headingMd">{t("自动发送")}</Text>
+            <Checkbox
+              label={t("订阅时自动发送确认邮件")}
+              helpText={t("关闭后，客人订阅时不再自动收到「已加入提醒名单」的确认信。")}
+              checked={s.autoConfirmEnabled}
+              onChange={(v) => setS({ ...s, autoConfirmEnabled: v })}
+            />
+            <Checkbox
+              label={t("到货时自动发送提醒邮件")}
+              helpText={t("关闭后，库存到货也不会自动群发提醒；订阅会保留在「等待中」，可稍后开启再发或手动发送。")}
+              checked={s.autoRestockEnabled}
+              onChange={(v) => setS({ ...s, autoRestockEnabled: v })}
+            />
+            <Text as="p" tone="subdued" variant="bodySm">{t("需要临时停掉所有自动邮件时，把上面两个都关掉即可。")}</Text>
           </BlockStack>
         </Card>
 

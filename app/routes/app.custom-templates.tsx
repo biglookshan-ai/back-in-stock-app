@@ -71,8 +71,8 @@ function renderClient(tpl: string, vars: Record<string, string>) {
 // 默认正文（中间内容；页眉/页脚 + 外边距由全局外壳提供）
 const DEFAULT_BODY = `<div style="font-family:Arial,sans-serif">
   <h2 style="color:{{brand_color}};margin:0 0 12px">Hi {{customer_name}},</h2>
-  <p style="font-size:15px;color:#444;line-height:1.6">关于 <strong>{{product_title}}</strong>（{{variant_title}}）—— 在这里写你要手动通知的内容，比如预计 3 周到货，是否仍需要？</p>
-  <p style="margin-top:16px"><a href="{{product_url}}" style="display:inline-block;background:{{brand_color}};color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none">查看商品</a></p>
+  <p style="font-size:15px;color:#444;line-height:1.6">Regarding <strong>{{product_title}}</strong> ({{variant_title}}) — write your message here, e.g. it's expected to ship in about 3 weeks; do you still want it?</p>
+  <p style="margin-top:16px"><a href="{{product_url}}" style="display:inline-block;background:{{brand_color}};color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none">View product</a></p>
 </div>`;
 
 // 与服务端 composeEmail 一致的外壳（预览用）

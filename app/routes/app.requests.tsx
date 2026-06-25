@@ -70,7 +70,7 @@ function renderClient(tpl: string, vars: Record<string, string>) {
 // 预览用样例（客人订阅的产品）
 const SAMPLE_VARS: Record<string, string> = {
   customer_name: "Alex", customer_email: "customer@example.com",
-  product_title: "客人订阅的产品", variant_title: "EF Mount",
+  product_title: "Customer's subscribed product", variant_title: "EF Mount",
   product_image: "https://placehold.co/240x240/1a1a1a/ffffff?text=Product",
   product_price: "£2,629.95", product_url: "#", unsubscribe_url: "#",
 };

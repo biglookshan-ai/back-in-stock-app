@@ -117,6 +117,10 @@ model Settings {
   fromName         String  @default("CINEGEARPRO")
   fromEmail        String  @default("")
 
+  // 自动发送开关（关闭后对应的自动邮件不再发出；手动发送不受影响）
+  autoConfirmEnabled Boolean @default(true) // 订阅时自动发确认信
+  autoRestockEnabled Boolean @default(true) // 到货时自动发提醒信
+
   // 发送规则
   minStockThreshold             Int     @default(1) // 库存达到此值才发到货通知
   notifyAtZeroIfContinueSelling Boolean @default(false) // 缺货可继续售卖时，库存=0 也通知

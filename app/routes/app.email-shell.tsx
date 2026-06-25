@@ -65,8 +65,8 @@ function wrapShell(header: string, body: string, footer: string) {
 
 // 预览中段（代表模板正文的位置）
 const SAMPLE_BODY = `
-  <div style="font-size:22px;font-weight:700;color:#1a1a1a;">这里是模板正文</div>
-  <div style="font-size:15px;color:#555;line-height:1.6;margin-top:8px;">页眉在上、页脚在下，由本页统一控制。各模板只需写中间这段内容。</div>`;
+  <div style="font-size:22px;font-weight:700;color:#1a1a1a;">This is the template body</div>
+  <div style="font-size:15px;color:#555;line-height:1.6;margin-top:8px;">The header is above and the footer below, both controlled on this page. Each template only writes this middle section.</div>`;
 
 const SAMPLE_VARS = {
   shop_name: "CINEGEARPRO",

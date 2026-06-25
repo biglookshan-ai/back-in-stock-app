@@ -200,6 +200,9 @@ async function sendConfirmation(subscriptionId: string) {
     where: { id: subscriptionId },
   });
   if (!sub) return;
+  // 设置里关闭了「自动发确认信」则不发
+  const settings = await getSettings(sub.shop);
+  if (!settings.autoConfirmEnabled) return;
   const tpl = await getTemplate(sub.shop, "CONFIRMATION");
   if (!tpl.enabled) return;
   await sendEmail(sub, "CONFIRMATION", tpl);
@@ -209,6 +212,10 @@ async function sendConfirmation(subscriptionId: string) {
 // inventory webhook 调用：把某 variant 的所有 ACTIVE 订阅发「到货」信。
 // v1 内联顺序发送（带每封间隔，温和限速）。量大时可替换为 BullMQ + Redis。
 export async function notifyVariantRestocked(shop: string, variantId: string) {
+  // 设置里关闭了「到货自动发提醒」则不发（订阅保持 ACTIVE，可改回开后或手动发）
+  const settings = await getSettings(shop);
+  if (!settings.autoRestockEnabled) return { notified: 0, skipped: true };
+
   const subs = await prisma.subscription.findMany({
     where: { shop, variantId, status: "ACTIVE" },
     orderBy: { createdAt: "asc" }, // 先到先得
