@@ -236,7 +236,7 @@ export default function Templates() {
               </p>
             </Banner>
 
-            <InlineGrid columns={{ xs: 1, md: 2 }} gap="400">
+            <InlineGrid columns={{ xs: 1, md: "2fr 3fr" }} gap="400">
               {/* 编辑器 */}
               <Card>
                 <BlockStack gap="400">
