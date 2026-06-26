@@ -24,8 +24,8 @@ export interface TemplateVars {
 
 // ── 品牌化邮件外壳（深色页眉 logo + 页脚展厅信息，对齐 Newsletter 版式）──────
 const HEADER = `
-  <tr><td align="left" style="background:#23262e;padding:22px 32px;">
-    <img src="https://cdn.shopify.com/shopify-email/kxuq59r7o9axnrab05g6y1puvobi.png?width=960&height=960" alt="{{shop_name}}" height="30" style="height:30px;display:block;border:0;">
+  <tr><td align="left" style="background:#23262e;padding:32px 36px;">
+    <img src="https://cdn.shopify.com/shopify-email/kxuq59r7o9axnrab05g6y1puvobi.png?width=960&height=960" alt="{{shop_name}}" height="38" style="height:38px;display:block;border:0;">
   </td></tr>`;
 
 // 产品卡：独立 table（水平内边距由正文单元格统一提供，这里只留上下间距）
