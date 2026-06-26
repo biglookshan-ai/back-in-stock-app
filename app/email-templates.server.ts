@@ -58,7 +58,7 @@ const FOOTER = `
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
       <td style="padding:22px 32px;vertical-align:top;font-size:13px;line-height:1.7;">
         <div style="color:#e8c84d;font-weight:700;font-size:16px;">Visit our showroom</div>
-        <div style="margin-top:4px;color:#bbbbbb;font-size:13px;">Try Before You Buy</div>
+        <div style="margin-top:4px;color:#e8c84d;font-size:13px;">Try Before You Buy</div>
         <div style="margin-top:10px;color:#bbbbbb;">Opening Hours:<br>Monday to Friday 9:00am &ndash; 5:30pm</div>
         <div style="margin-top:12px;color:#bbbbbb;">London Showroom:<br>Unit 7, Victoria Park Industrial Centre<br>Rothbury Road, London E9 5HD</div>
       </td>
