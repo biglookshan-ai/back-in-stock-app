@@ -85,7 +85,7 @@ export default function Dashboard() {
   const t = useT();
 
   return (
-    <Page>
+    <Page fullWidth>
       <TitleBar title="Back in Stock Dashboard" />
       <BlockStack gap="500">
         <InlineGrid columns={{ xs: 1, sm: 2, md: 5 }} gap="400">

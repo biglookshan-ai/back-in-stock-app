@@ -65,7 +65,7 @@ export default function SubscriberDetail() {
   const t = useT();
 
   return (
-    <Page
+    <Page fullWidth
       backAction={{ content: t("订阅者"), url: "/app/subscribers" }}
       title={email}
       subtitle={name ? `${name} · ${t("{n} 条订阅", { n: rows.length })}` : t("{n} 条订阅", { n: rows.length })}

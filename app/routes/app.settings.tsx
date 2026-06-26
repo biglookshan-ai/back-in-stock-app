@@ -117,7 +117,7 @@ export default function SettingsPage() {
     );
 
   return (
-    <Page backAction={{ content: t("返回"), onAction: () => navigate("/app") }}>
+    <Page fullWidth backAction={{ content: t("返回"), onAction: () => navigate("/app") }}>
       <TitleBar title={t("设置")} />
       <BlockStack gap="400">
         <Card>

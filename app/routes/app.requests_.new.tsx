@@ -136,7 +136,7 @@ export default function NewSubscription() {
   const err = (fetcher.data as any)?.error;
 
   return (
-    <Page
+    <Page fullWidth
       backAction={{ content: t("请求列表"), url: "/app/requests" }}
       title={t("手动添加订阅")}
     >

@@ -444,7 +444,7 @@ export default function Requests() {
     !tagList.includes(tagInput.trim());
 
   return (
-    <Page
+    <Page fullWidth
       backAction={{ content: t("返回"), onAction: () => navigate("/app") }}
       primaryAction={{ content: t("手动添加订阅"), url: "/app/requests/new" }}
       secondaryActions={[

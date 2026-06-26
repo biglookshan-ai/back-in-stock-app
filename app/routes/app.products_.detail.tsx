@@ -67,7 +67,7 @@ export default function ProductDetail() {
   const t = useT();
 
   return (
-    <Page
+    <Page fullWidth
       backAction={{ content: t("产品订阅"), url: "/app/products" }}
       title={productTitle}
       subtitle={t("{n} 条订阅", { n: rows.length })}

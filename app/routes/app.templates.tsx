@@ -210,7 +210,7 @@ export default function Templates() {
   const previewSubject = renderClient(d.subject, previewVars);
 
   return (
-    <Page backAction={{ content: t("返回"), onAction: () => navigate("/app") }}>
+    <Page fullWidth backAction={{ content: t("返回"), onAction: () => navigate("/app") }}>
       <TitleBar title={t("自动发送模板")} />
       <Tabs
         selected={tab}

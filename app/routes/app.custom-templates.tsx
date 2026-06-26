@@ -122,7 +122,7 @@ export default function CustomTemplates() {
   const previewVars = { ...SAMPLE, ...brand } as Record<string, string>;
 
   return (
-    <Page backAction={{ content: t("返回"), onAction: () => navigate("/app") }}>
+    <Page fullWidth backAction={{ content: t("返回"), onAction: () => navigate("/app") }}>
       <TitleBar title={t("自定义邮件模板")} />
       <Banner tone="info">
         <p>{t("这些模板用于手动发送邮件(在「请求列表」筛选客人后群发)。变量同其它模板:")}<code>{"{{customer_name}} {{product_title}} {{variant_title}} {{product_url}} {{brand_color}}"}</code>{t(" 等。")}</p>

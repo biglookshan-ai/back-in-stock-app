@@ -153,7 +153,7 @@ export default function Products() {
   };
 
   return (
-    <Page backAction={{ content: t("返回"), onAction: () => navigate("/app") }}>
+    <Page fullWidth backAction={{ content: t("返回"), onAction: () => navigate("/app") }}>
       <TitleBar title={t("产品订阅")} />
       <Card padding="0">
         <Box padding="300">
