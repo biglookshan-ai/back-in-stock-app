@@ -287,7 +287,7 @@ export default function Templates() {
                     <iframe
                       title="email-preview"
                       srcDoc={previewHtml}
-                      style={{ width: "100%", minWidth: 600, height: 820, border: "none", display: "block" }}
+                      style={{ width: 600, height: 720, zoom: 1.3, border: "none", display: "block", margin: "0 auto" }}
                     />
                   </Box>
                 </BlockStack>
