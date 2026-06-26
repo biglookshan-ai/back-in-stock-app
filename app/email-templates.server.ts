@@ -46,6 +46,7 @@ const PRODUCT_CARD = `
 const FOOTER = `
   <tr><td style="background:#000000;padding:0;font-family:Arial,sans-serif;color:#cfcfcf;">
     <img src="https://cdn.shopify.com/shopify-email/4b5jc5pswmvy9ztsln437uzjjcci.jpg?width=1200" alt="Gear Up Now, Pay Later — Klarna" width="600" style="width:100%;max-width:600px;display:block;border:0;">
+    <div style="height:12px;line-height:12px;font-size:0;">&nbsp;</div>
     <a href="https://maps.google.com/?q=CINEGEARPRO+LTD+London+E9+5HD"><img src="https://cdn.shopify.com/shopify-email/9nh8dadb3b5b57l73unaigg32ps4.gif?width=1200" alt="Visit our showroom — London E9 5HD" width="600" style="width:100%;max-width:600px;display:block;border:0;"></a>
     <div style="padding:24px 32px;">
       <div>
