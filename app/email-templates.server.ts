@@ -24,7 +24,7 @@ export interface TemplateVars {
 
 // ── 品牌化邮件外壳（深色页眉 logo + 页脚展厅信息，对齐 Newsletter 版式）──────
 const HEADER = `
-  <tr><td align="left" style="background:#23262e;padding:32px 36px;">
+  <tr><td align="left" style="background:#23262e;padding:18px 24px;">
     <img src="https://cdn.shopify.com/shopify-email/kxuq59r7o9axnrab05g6y1puvobi.png?width=960&height=960" alt="{{shop_name}}" height="38" style="height:38px;display:block;border:0;">
   </td></tr>`;
 
