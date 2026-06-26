@@ -148,7 +148,7 @@ export default function EmailShell() {
               <Text as="h3" variant="headingMd">{t("实时预览")}</Text>
               <Box borderRadius="200" borderWidth="025" borderColor="border" overflowX="scroll">
                 <iframe title="shell-preview" srcDoc={previewHtml}
-                  style={{ width: 600, height: 600, border: "none", display: "block" }} />
+                  style={{ width: "100%", minWidth: 600, height: 820, border: "none", display: "block" }} />
               </Box>
             </BlockStack>
           </Card>
