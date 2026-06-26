@@ -24,8 +24,8 @@ export interface TemplateVars {
 
 // ── 品牌化邮件外壳（深色页眉 logo + 页脚展厅信息，对齐 Newsletter 版式）──────
 const HEADER = `
-  <tr><td align="center" style="background:#23262e;padding:22px 32px;">
-    <img src="https://cdn.shopify.com/shopify-email/kxuq59r7o9axnrab05g6y1puvobi.png?width=960&height=960" alt="{{shop_name}}" height="30" style="height:30px;display:block;border:0;margin:0 auto;">
+  <tr><td align="left" style="background:#23262e;padding:22px 32px;">
+    <img src="https://cdn.shopify.com/shopify-email/kxuq59r7o9axnrab05g6y1puvobi.png?width=960&height=960" alt="{{shop_name}}" height="30" style="height:30px;display:block;border:0;">
   </td></tr>`;
 
 // 产品卡：独立 table（水平内边距由正文单元格统一提供，这里只留上下间距）
@@ -44,7 +44,7 @@ const PRODUCT_CARD = `
   </div>`;
 
 const FOOTER = `
-  <tr><td style="background:#1c1c1c;padding:0;font-family:Arial,sans-serif;color:#cfcfcf;">
+  <tr><td style="background:#000000;padding:0;font-family:Arial,sans-serif;color:#cfcfcf;">
     <img src="https://cdn.shopify.com/shopify-email/4b5jc5pswmvy9ztsln437uzjjcci.jpg?width=1200" alt="Gear Up Now, Pay Later — Klarna" width="600" style="width:100%;max-width:600px;display:block;border:0;">
     <a href="https://maps.google.com/?q=CINEGEARPRO+LTD+London+E9+5HD"><img src="https://cdn.shopify.com/shopify-email/9nh8dadb3b5b57l73unaigg32ps4.gif?width=1200" alt="Visit our showroom — London E9 5HD" width="600" style="width:100%;max-width:600px;display:block;border:0;"></a>
     <div style="padding:24px 32px;">
