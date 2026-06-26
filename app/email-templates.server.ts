@@ -45,10 +45,27 @@ const PRODUCT_CARD = `
 
 const FOOTER = `
   <tr><td style="background:#000000;padding:0;font-family:Arial,sans-serif;color:#cfcfcf;">
-    <img src="https://cdn.shopify.com/shopify-email/4b5jc5pswmvy9ztsln437uzjjcci.jpg?width=1200" alt="Gear Up Now, Pay Later — Klarna" width="600" style="width:100%;max-width:600px;display:block;border:0;">
-    <div style="height:12px;line-height:12px;font-size:0;">&nbsp;</div>
-    <a href="https://maps.google.com/?q=CINEGEARPRO+LTD+London+E9+5HD"><img src="https://cdn.shopify.com/shopify-email/9nh8dadb3b5b57l73unaigg32ps4.gif?width=1200" alt="Visit our showroom — London E9 5HD" width="600" style="width:100%;max-width:600px;display:block;border:0;"></a>
-    <div style="padding:24px 46px;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+      <td style="padding:26px 32px;vertical-align:middle;">
+        <div style="font-size:18px;font-weight:700;color:#ffffff;">Gear Up Now, Pay Later</div>
+        <div style="font-size:13px;color:#bbbbbb;margin-top:5px;">We offer Klarna payments on all of our products.</div>
+      </td>
+      <td align="right" style="padding:26px 32px;vertical-align:middle;">
+        <img src="https://cdn.shopify.com/s/files/1/1258/4351/files/Klarna_Payment_Badge.png?v=1782477265" alt="Klarna" height="34" style="height:34px;border:0;display:block;">
+      </td>
+    </tr></table>
+    <div style="border-top:1px solid #2a2a2a;margin:0 32px;"></div>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+      <td style="padding:22px 32px;vertical-align:top;font-size:13px;line-height:1.7;">
+        <div style="color:#e8c84d;font-weight:700;font-size:16px;">Visit our showroom</div>
+        <div style="margin-top:10px;color:#bbbbbb;">Opening Hours:<br>Monday to Friday 9:00am &ndash; 5:30pm</div>
+        <div style="margin-top:12px;color:#bbbbbb;">London Showroom:<br>Unit 7, Victoria Park Industrial Centre<br>Rothbury Road, London E9 5HD</div>
+      </td>
+      <td align="right" style="padding:22px 32px;vertical-align:top;">
+        <a href="https://maps.google.com/?q=CINEGEARPRO+LTD+London+E9+5HD"><img src="https://cdn.shopify.com/s/files/1/1258/4351/files/Cgp_map.jpg?v=1782477265" alt="Map to CINEGEARPRO, London E9 5HD" width="220" style="width:220px;max-width:220px;border:0;display:block;border-radius:4px;"></a>
+      </td>
+    </tr></table>
+    <div style="padding:6px 32px 28px;">
       <div>
         <a href="https://facebook.com/cinegearpro"><img src="https://cdn.shopify.com/shopify-email/pgiqu05kn0pdfi4jnqq2p14qu5rw.svg?width=60&height=60&format=png" height="22" width="22" alt="Facebook" style="border:0;margin-right:16px;vertical-align:middle;"></a>
         <a href="https://instagram.com/cinegearpro"><img src="https://cdn.shopify.com/shopify-email/tv9pnmzfjzjjsp1ylzgxokl6nnx3.svg?width=60&height=60&format=png" height="22" width="22" alt="Instagram" style="border:0;margin-right:16px;vertical-align:middle;"></a>
