@@ -22,11 +22,10 @@ export interface TemplateVars {
   unsubscribe_url: string;
 }
 
-// ── 品牌化邮件外壳（头部 logo + 页脚公司信息），各模板共用片段 ──────
+// ── 品牌化邮件外壳（深色页眉 logo + 页脚展厅信息，对齐 Newsletter 版式）──────
 const HEADER = `
-  <tr><td align="center" style="padding:28px 32px 20px;border-bottom:1px solid #efefef;">
-    {{#if brand_logo}}<img src="{{brand_logo}}" alt="{{shop_name}}" height="34" style="height:34px;display:block;border:0;">{{/if}}
-    {{#unless brand_logo}}<div style="font-size:20px;font-weight:700;letter-spacing:.5px;color:{{brand_color}};">{{shop_name}}</div>{{/unless}}
+  <tr><td align="center" style="background:#23262e;padding:22px 32px;">
+    <img src="https://cdn.shopify.com/shopify-email/kxuq59r7o9axnrab05g6y1puvobi.png?width=960&height=960" alt="{{shop_name}}" height="30" style="height:30px;display:block;border:0;margin:0 auto;">
   </td></tr>`;
 
 // 产品卡：独立 table（水平内边距由正文单元格统一提供，这里只留上下间距）
@@ -45,16 +44,32 @@ const PRODUCT_CARD = `
   </div>`;
 
 const FOOTER = `
-  <tr><td style="padding:24px 32px 28px;border-top:1px solid #efefef;">
-    <div style="font-size:12px;color:#9a9a9a;line-height:1.7;">
-      {{#if website_url}}<a href="{{website_url}}" style="color:{{brand_color}};text-decoration:none;font-weight:600;">{{website_url}}</a><br>{{/if}}
-      {{#if company_address}}{{company_address}}<br>{{/if}}
-      {{#if support_email}}Questions? <a href="mailto:{{support_email}}" style="color:#9a9a9a;">{{support_email}}</a><br>{{/if}}
-      <span style="color:#bbb;">© {{shop_name}}</span>
+  <tr><td style="background:#1c1c1c;padding:28px 32px;font-family:Arial,sans-serif;color:#cfcfcf;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+      <td style="vertical-align:middle;">
+        <div style="font-size:16px;font-weight:700;color:#ffffff;">Gear Up Now, Pay Later</div>
+        <div style="font-size:13px;color:#bbbbbb;margin-top:4px;">We offer Klarna payments on all of our products.</div>
+      </td>
+      <td align="right" style="vertical-align:middle;"><img src="https://cdn.shopify.com/shopify-email/4b5jc5pswmvy9ztsln437uzjjcci.jpg?width=1200" alt="Klarna" height="26" style="height:26px;border:0;border-radius:4px;"></td>
+    </tr></table>
+    <div style="border-top:1px solid #333333;margin:20px 0;"></div>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+      <td style="vertical-align:top;font-size:13px;line-height:1.7;">
+        <div style="color:#e8c84d;font-weight:700;font-size:15px;">Visit our showroom</div>
+        <div style="margin-top:10px;color:#bbbbbb;">Opening Hours:<br>Monday to Friday 9:00am &ndash; 5:30pm</div>
+        <div style="margin-top:10px;color:#bbbbbb;">London Showroom:<br>Unit 7, Victoria Park Industrial Centre<br>Rothbury Road, London E9 5HD</div>
+      </td>
+      <td align="right" style="vertical-align:top;width:220px;">
+        <a href="https://maps.google.com/?q=CINEGEARPRO+LTD+London+E9+5HD"><img src="https://cdn.shopify.com/shopify-email/9nh8dadb3b5b57l73unaigg32ps4.gif?width=1200" alt="Map" width="210" style="max-width:210px;border:0;display:block;border-radius:6px;"></a>
+      </td>
+    </tr></table>
+    <div style="margin-top:22px;">
+      <a href="https://facebook.com/cinegearpro"><img src="https://cdn.shopify.com/shopify-email/pgiqu05kn0pdfi4jnqq2p14qu5rw.svg?width=60&height=60&format=png" height="22" width="22" alt="Facebook" style="border:0;margin-right:16px;vertical-align:middle;"></a>
+      <a href="https://instagram.com/cinegearpro"><img src="https://cdn.shopify.com/shopify-email/tv9pnmzfjzjjsp1ylzgxokl6nnx3.svg?width=60&height=60&format=png" height="22" width="22" alt="Instagram" style="border:0;margin-right:16px;vertical-align:middle;"></a>
+      <a href="https://youtube.com/@cinegearpro"><img src="https://cdn.shopify.com/shopify-email/trx6uyjo3dzi5zerszkhemidvmts.svg?width=60&height=60&format=png" height="22" width="22" alt="YouTube" style="border:0;vertical-align:middle;"></a>
     </div>
-    <div style="font-size:11px;color:#c0c0c0;margin-top:12px;">
-      <a href="{{unsubscribe_url}}" style="color:#c0c0c0;">Unsubscribe</a>
-    </div>
+    <div style="margin-top:22px;font-size:12px;color:#999999;">Copyright &copy; {{shop_name}}.</div>
+    <div style="margin-top:6px;font-size:12px;color:#999999;">No longer want to receive these emails? <a href="{{unsubscribe_url}}" style="color:#bbbbbb;text-decoration:underline;">Unsubscribe</a></div>
   </td></tr>`;
 
 function button(label: string) {
