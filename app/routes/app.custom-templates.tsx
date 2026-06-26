@@ -197,19 +197,20 @@ export default function CustomTemplates() {
       </Box>
 
       <Modal
+        size="large"
         open={previewOpen}
         onClose={() => setPreviewOpen(false)}
         title={t("邮件预览")}
         primaryAction={{ content: t("关闭"), onAction: () => setPreviewOpen(false) }}
       >
         <Modal.Section>
-          <Box borderRadius="200" borderWidth="025" borderColor="border">
+          <Box borderRadius="200" borderWidth="025" borderColor="border" overflowX="scroll">
             <iframe title="preview"
               srcDoc={renderClient(
                 sel?.useGlobalShell ? wrapShell(globalHeader, sel?.htmlBody ?? "", globalFooter) : (sel?.htmlBody ?? ""),
                 previewVars,
               )}
-              style={{ width: "100%", height: 480, border: "none", display: "block" }} />
+              style={{ width: 600, height: 560, border: "none", display: "block", margin: "0 auto" }} />
           </Box>
         </Modal.Section>
       </Modal>

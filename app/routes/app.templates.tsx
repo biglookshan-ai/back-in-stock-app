@@ -283,11 +283,11 @@ export default function Templates() {
                   <Text as="p" tone="subdued" variant="bodySm">
                     {t("主题：")}{previewSubject}
                   </Text>
-                  <Box borderRadius="200" borderWidth="025" borderColor="border" overflowX="hidden">
+                  <Box borderRadius="200" borderWidth="025" borderColor="border" overflowX="scroll">
                     <iframe
                       title="email-preview"
                       srcDoc={previewHtml}
-                      style={{ width: "100%", height: 560, border: "none", display: "block" }}
+                      style={{ width: 600, height: 600, border: "none", display: "block" }}
                     />
                   </Box>
                 </BlockStack>

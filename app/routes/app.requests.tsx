@@ -654,6 +654,7 @@ export default function Requests() {
 
       {/* 发信记录：这条订阅发过哪些邮件（自动/手动、成功/失败、可预览内容）*/}
       <Modal
+        size="large"
         open={logSubId !== null}
         onClose={() => { setLogSubId(null); setPreviewLogId(null); }}
         title={previewLogId ? t("邮件内容预览") : t("发信记录")}
@@ -665,11 +666,11 @@ export default function Requests() {
       >
         <Modal.Section>
           {previewLogId ? (
-            <Box borderRadius="200" borderWidth="025" borderColor="border">
+            <Box borderRadius="200" borderWidth="025" borderColor="border" overflowX="scroll">
               <iframe
                 title="maillog-preview"
                 srcDoc={bodyFetcher.state !== "idle" ? `<p style='font-family:sans-serif;padding:16px;color:#888'>${t("加载中…")}</p>` : (bodyFetcher.data?.htmlBody || `<p style='font-family:sans-serif;padding:16px;color:#888'>${t("（无存档内容）")}</p>`)}
-                style={{ width: "100%", height: 480, border: "none", display: "block" }}
+                style={{ width: 600, height: 560, border: "none", display: "block", margin: "0 auto" }}
               />
             </Box>
           ) : logFetcher.state !== "idle" ? (
@@ -710,6 +711,7 @@ export default function Requests() {
 
       {/* 发送邮件：发给勾选的人 */}
       <Modal
+        size="large"
         open={sendOpen}
         onClose={() => { setSendOpen(false); setPreviewMode(false); }}
         title={previewMode ? t("邮件预览") : t("发送邮件（已选 {n} 人）", { n: selectedResources.length })}
@@ -737,9 +739,9 @@ export default function Requests() {
                   {t("预览以勾选的第一位客人为例：")}<b>{firstSel.customerName || firstSel.email}</b>{t(" 订阅了「")}{firstSel.productTitle}{firstSel.variantTitle && firstSel.variantTitle !== "Default Title" ? ` / ${firstSel.variantTitle}` : ""}{t("」。每位收件人都会替换成自己订阅的产品。")}
                 </Text>
               )}
-              <Box borderRadius="200" borderWidth="025" borderColor="border">
+              <Box borderRadius="200" borderWidth="025" borderColor="border" overflowX="scroll">
                 <iframe title="send-preview" srcDoc={sendPreview}
-                  style={{ width: "100%", height: 480, border: "none", display: "block" }} />
+                  style={{ width: 600, height: 560, border: "none", display: "block", margin: "0 auto" }} />
               </Box>
             </BlockStack>
           ) : (

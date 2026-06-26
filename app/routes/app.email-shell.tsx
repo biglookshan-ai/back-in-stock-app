@@ -114,7 +114,7 @@ export default function EmailShell() {
           </p>
         </Banner>
 
-        <InlineGrid columns={{ xs: 1, md: 2 }} gap="400">
+        <InlineGrid columns={1} gap="400">
           <Card>
             <BlockStack gap="400">
               <InlineStack align="space-between" blockAlign="center">
@@ -146,9 +146,9 @@ export default function EmailShell() {
           <Card>
             <BlockStack gap="300">
               <Text as="h3" variant="headingMd">{t("实时预览")}</Text>
-              <Box borderRadius="200" borderWidth="025" borderColor="border" overflowX="hidden">
+              <Box borderRadius="200" borderWidth="025" borderColor="border" overflowX="scroll">
                 <iframe title="shell-preview" srcDoc={previewHtml}
-                  style={{ width: "100%", height: 560, border: "none", display: "block" }} />
+                  style={{ width: 600, height: 600, border: "none", display: "block" }} />
               </Box>
             </BlockStack>
           </Card>
