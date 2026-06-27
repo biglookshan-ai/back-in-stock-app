@@ -66,21 +66,15 @@ function Stat({ label, value }: { label: string; value: number }) {
   );
 }
 
-// 可点击的导航模块：跳转到对应列表页
-function NavTile({ to, title, value, hint }: { to: string; title: string; value: number; hint: string }) {
+// 卡片标题 + 右侧跳转链接
+function SectionHead({ title, to, link }: { title: string; to: string; link: string }) {
   return (
-    <RemixLink to={to} style={{ textDecoration: "none", color: "inherit", display: "block" }}>
-      <Card>
-        <BlockStack gap="200">
-          <InlineStack align="space-between" blockAlign="center">
-            <Text as="span" variant="headingMd">{title}</Text>
-            <Text as="span" variant="headingMd" tone="subdued">→</Text>
-          </InlineStack>
-          <Text as="p" variant="heading2xl">{value.toLocaleString()}</Text>
-          <Text as="span" variant="bodySm" tone="subdued">{hint}</Text>
-        </BlockStack>
-      </Card>
-    </RemixLink>
+    <InlineStack align="space-between" blockAlign="center">
+      <Text as="h2" variant="headingMd">{title}</Text>
+      <RemixLink to={to} style={{ textDecoration: "none" }}>
+        <Text as="span" variant="bodySm" tone="subdued">{link}</Text>
+      </RemixLink>
+    </InlineStack>
   );
 }
 
@@ -93,29 +87,29 @@ export default function Dashboard() {
     <Page fullWidth>
       <TitleBar title="Back in Stock Dashboard" />
       <BlockStack gap="500">
-        <InlineGrid columns={{ xs: 1, sm: 2, md: 5 }} gap="400">
-          <Stat label={t("总订阅数")} value={total} />
-          <Stat label={t("待发提醒（等待中）")} value={active} />
-          <Stat label={t("已通知（已发送）")} value={notified} />
-          <Stat label={t("转化（已订购）")} value={ordered} />
-          <Stat label={t("累计发信成功")} value={emailsSent} />
-        </InlineGrid>
-
-        <InlineGrid columns={{ xs: 1, sm: 3 }} gap="400">
-          <NavTile to="/app/requests" title={t("所有订阅")} value={total} hint={t("查看请求列表 →")} />
-          <NavTile to="/app/products" title={t("所有产品")} value={productCount} hint={t("查看产品订阅 →")} />
-          <NavTile to="/app/subscribers" title={t("所有客人")} value={customerCount} hint={t("查看订阅者 →")} />
-        </InlineGrid>
-
+        {/* 订阅：状态维度 */}
         <Card>
           <BlockStack gap="300">
-            <InlineStack align="space-between" blockAlign="center">
-              <Text as="h2" variant="headingMd">{t("订阅客人构成（按人去重）")}</Text>
-              <RemixLink to="/app/subscribers" style={{ textDecoration: "none" }}>
-                <Text as="span" variant="bodySm" tone="subdued">{t("查看订阅者 →")}</Text>
-              </RemixLink>
-            </InlineStack>
+            <SectionHead title={t("订阅")} to="/app/requests" link={t("查看请求列表 →")} />
             <InlineGrid columns={{ xs: 2, sm: 4 }} gap="400">
+              <Stat label={t("总订阅数")} value={total} />
+              <Stat label={t("待发提醒（等待中）")} value={active} />
+              <Stat label={t("已通知（已发送）")} value={notified} />
+              <Stat label={t("转化（已订购）")} value={ordered} />
+            </InlineGrid>
+            <Text as="p" variant="bodySm" tone="subdued">
+              {t("涉及 {n} 个商品", { n: productCount })} ·{" "}
+              <RemixLink to="/app/products" style={{ textDecoration: "underline", color: "inherit" }}>{t("查看产品订阅 →")}</RemixLink>
+            </Text>
+          </BlockStack>
+        </Card>
+
+        {/* 客人：按人去重 + 新老客构成 */}
+        <Card>
+          <BlockStack gap="300">
+            <SectionHead title={t("客人")} to="/app/subscribers" link={t("查看订阅者 →")} />
+            <InlineGrid columns={{ xs: 2, sm: 5 }} gap="400">
+              <Stat label={t("总人数")} value={customerCount} />
               <Stat label={t("老客·已下单")} value={ctype.ORDERED} />
               <Stat label={t("老客·未下单")} value={ctype.NO_ORDER} />
               <Stat label={t("新客")} value={ctype.NEW} />
@@ -126,6 +120,16 @@ export default function Dashboard() {
                 {t("有 {n} 位客人尚未识别，去订阅者或请求列表点「识别新老客」即可补齐。", { n: ctype.UNKNOWN })}
               </Text>
             ) : null}
+          </BlockStack>
+        </Card>
+
+        {/* 邮件 */}
+        <Card>
+          <BlockStack gap="300">
+            <Text as="h2" variant="headingMd">{t("邮件")}</Text>
+            <InlineGrid columns={{ xs: 2, sm: 4 }} gap="400">
+              <Stat label={t("累计发信成功")} value={emailsSent} />
+            </InlineGrid>
           </BlockStack>
         </Card>
 

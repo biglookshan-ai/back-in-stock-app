@@ -322,6 +322,11 @@ const DICT: Record<string, string> = {
 
   // ── 新老客分类 ──────────────────────────────────────────────────
   "当前列表共 {n} 条": "{n} in current list",
+  "订阅": "Subscriptions",
+  "客人": "Customers",
+  "邮件": "Emails",
+  "总人数": "Total people",
+  "涉及 {n} 个商品": "{n} products involved",
   "客户类型": "Customer type",
   "老客·已下单": "Returning · ordered",
   "老客·未下单": "Returning · no order",
