@@ -576,14 +576,22 @@ export default function Requests() {
                   <IndexTable.Cell>
                     <Text as="span" variant="bodyMd">{r.email}</Text>
                     {r.customerName ? (<><br /><Text as="span" variant="bodySm" tone="subdued">{r.customerName}</Text></>) : null}
-                    <Box paddingBlockStart="100">
-                      <InlineStack gap="100" wrap>
-                        {r.customerType ? (
-                          <Badge tone={CTYPE_TONE[r.customerType]} size="small">{t(CTYPE_LABEL[r.customerType] ?? r.customerType)}</Badge>
-                        ) : null}
-                        {r.marketing ? <Badge tone="success" size="small">Newsletter</Badge> : null}
-                      </InlineStack>
-                    </Box>
+                    {r.customerType || r.marketing ? (
+                      <Box paddingBlockStart="100">
+                        <BlockStack gap="100">
+                          {r.customerType ? (
+                            <InlineStack>
+                              <Badge tone={CTYPE_TONE[r.customerType]} size="small">{t(CTYPE_LABEL[r.customerType] ?? r.customerType)}</Badge>
+                            </InlineStack>
+                          ) : null}
+                          {r.marketing ? (
+                            <InlineStack>
+                              <Badge tone="magic" size="small">Newsletter</Badge>
+                            </InlineStack>
+                          ) : null}
+                        </BlockStack>
+                      </Box>
+                    ) : null}
                   </IndexTable.Cell>
                   <IndexTable.Cell>
                     <BlockStack gap="050">

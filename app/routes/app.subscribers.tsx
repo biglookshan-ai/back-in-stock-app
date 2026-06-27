@@ -36,6 +36,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const shop = session.shop;
   const url = new URL(request.url);
   const ctype = url.searchParams.get("ctype")?.trim() ?? "";
+  const mkt = url.searchParams.get("mkt")?.trim() ?? "";
 
   const all = await prisma.subscription.findMany({
     where: { shop },
@@ -71,9 +72,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   for (const s of subscribers) typeCounts[(s.customerType ?? "UNKNOWN") as keyof typeof typeCounts]++;
 
   const totalCount = subscribers.length;
+  const newsletterCount = subscribers.filter((s) => s.marketing).length;
   if (ctype) subscribers = subscribers.filter((s) => (s.customerType ?? "UNKNOWN") === ctype);
+  if (mkt === "yes") subscribers = subscribers.filter((s) => s.marketing);
+  else if (mkt === "no") subscribers = subscribers.filter((s) => !s.marketing);
 
-  return { subscribers: subscribers.slice(0, 1000), totalCount, shown: subscribers.length, ctype, typeCounts };
+  return { subscribers: subscribers.slice(0, 1000), totalCount, shown: subscribers.length, ctype, mkt, typeCounts, newsletterCount };
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -132,12 +136,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 export default function Subscribers() {
-  const { subscribers, totalCount, shown, ctype, typeCounts } = useLoaderData<typeof loader>() as {
+  const { subscribers, totalCount, shown, ctype, mkt, typeCounts, newsletterCount } = useLoaderData<typeof loader>() as {
     subscribers: Subscriber[];
     totalCount: number;
     shown: number;
     ctype: string;
+    mkt: string;
     typeCounts: { ORDERED: number; NO_ORDER: number; NEW: number; UNKNOWN: number };
+    newsletterCount: number;
   };
 
   const fetcher = useFetcher<{ csv?: string; filename?: string }>();
@@ -193,6 +199,15 @@ export default function Subscribers() {
                   ]}
                   value={ctype} onChange={(v) => setParam("ctype", v)} />
               </Box>
+              <Box minWidth="170px">
+                <Select label="Newsletter" labelInline
+                  options={[
+                    { label: t("全部"), value: "" },
+                    { label: `${t("已订阅")} (${newsletterCount})`, value: "yes" },
+                    { label: t("未订阅"), value: "no" },
+                  ]}
+                  value={mkt} onChange={(v) => setParam("mkt", v)} />
+              </Box>
             </InlineStack>
             <InlineStack gap="200">
               <Button
@@ -238,7 +253,7 @@ export default function Subscribers() {
                   )}
                 </IndexTable.Cell>
                 <IndexTable.Cell>
-                  <Badge tone={s.marketing ? "success" : undefined}>{s.marketing ? "Yes" : "No"}</Badge>
+                  <Badge tone={s.marketing ? "magic" : undefined}>{s.marketing ? "Yes" : "No"}</Badge>
                 </IndexTable.Cell>
                 <IndexTable.Cell>{new Date(s.firstAt).toLocaleString()}</IndexTable.Cell>
                 <IndexTable.Cell>{String(s.total)}</IndexTable.Cell>
