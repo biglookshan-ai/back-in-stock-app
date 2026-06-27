@@ -597,7 +597,7 @@ export default function Requests() {
               onSelectionChange={handleSelectionChange}
               headings={[
                 { title: t("商品 / 变体") }, { title: t("客户") }, { title: t("可用库存") },
-                { title: t("状态") }, { title: t("日期") }, { title: t("操作"), alignment: "end" },
+                { title: t("状态") }, { title: t("日期") }, { title: t("操作") },
               ]}
             >
               {rows.map((r, i) => (
@@ -650,8 +650,10 @@ export default function Requests() {
                     </BlockStack>
                   </IndexTable.Cell>
                   <IndexTable.Cell>
-                    <BlockStack gap="100">
-                      <Badge tone={TONE[r.status]}>{t(LABEL[r.status] ?? r.status)}</Badge>
+                    <BlockStack gap="100" inlineAlign="start">
+                      <InlineStack>
+                        <Badge tone={TONE[r.status]}>{t(LABEL[r.status] ?? r.status)}</Badge>
+                      </InlineStack>
                       {r.lastSend ? (
                         <InlineStack gap="100" blockAlign="center" wrap={false}>
                           <Badge size="small" tone={MAIL_KIND[r.lastSend.type]?.auto ? "info" : undefined}>
@@ -670,7 +672,7 @@ export default function Requests() {
                     <Text as="span" variant="bodySm" tone="subdued">{new Date(r.createdAt).toLocaleDateString()}</Text>
                   </IndexTable.Cell>
                   <IndexTable.Cell>
-                    <InlineStack gap="300" align="end" blockAlign="center" wrap={false}>
+                    <InlineStack gap="300" align="start" blockAlign="center" wrap={false}>
                       <Button variant="plain" onClick={() => openLogs(r.id)}>{t("记录")}</Button>
                       <Button variant="plain" onClick={() => openTag(r)}>{t("标签")}</Button>
                       {r.status === "ARCHIVED" ? (
