@@ -330,7 +330,7 @@ const MAIL_KIND: Record<string, { label: string; auto: boolean }> = {
 type CustomTpl = { id: string; name: string; subject: string; htmlBody: string; useGlobalShell: boolean };
 
 export default function Requests() {
-  const { rows, counts, status, q, customTemplates, allTags, ctypeCounts, importableCount, shop, brand, globalHeader, globalFooter, stockNames } =
+  const { rows, counts, status, q, filteredCount, customTemplates, allTags, ctypeCounts, importableCount, shop, brand, globalHeader, globalFooter, stockNames } =
     useLoaderData<typeof loader>() as {
       rows: Row[]; counts: Record<string, number>; status: string; q: string;
       filteredCount: number; customTemplates: CustomTpl[]; allTags: string[];
@@ -575,9 +575,14 @@ export default function Requests() {
               </InlineStack>
             </Box>
             <Box paddingBlockStart="200">
-              <Text as="span" variant="bodySm" tone="subdued">
-                {t("「可用库存」列：UK = {shop} · EW = {ew}（实时 Available）", { shop: stockNames.shopName, ew: stockNames.ewName })}
-              </Text>
+              <InlineStack align="space-between" blockAlign="center" gap="200">
+                <Text as="span" variant="bodyMd" fontWeight="semibold">
+                  {t("当前列表共 {n} 条", { n: filteredCount })}
+                </Text>
+                <Text as="span" variant="bodySm" tone="subdued">
+                  {t("「可用库存」列：UK = {shop} · EW = {ew}（实时 Available）", { shop: stockNames.shopName, ew: stockNames.ewName })}
+                </Text>
+              </InlineStack>
             </Box>
           </Box>
 

@@ -321,6 +321,7 @@ const DICT: Record<string, string> = {
   "退订链接": "Unsubscribe link",
 
   // ── 新老客分类 ──────────────────────────────────────────────────
+  "当前列表共 {n} 条": "{n} in current list",
   "客户类型": "Customer type",
   "老客·已下单": "Returning · ordered",
   "老客·未下单": "Returning · no order",
