@@ -19,6 +19,7 @@ import {
 import { TitleBar, useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import { createManualSubscription, getSettings } from "../models/subscription.server";
+import { classifyCustomer } from "../models/customer.server";
 import { useT, translate, type Lang } from "../i18n";
 
 const CURRENCY_SYMBOL: Record<string, string> = {
@@ -77,9 +78,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   }
   if (!variant?.product) return json({ error: tr("找不到该变体") }, { status: 404 });
 
+  const customerType = await classifyCustomer(admin, email);
+
   await createManualSubscription({
     shop: session.shop,
     email,
+    customerType,
     productId: variant.product.id,
     variantId: variant.id,
     barcode: variant.barcode ?? null,

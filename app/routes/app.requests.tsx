@@ -27,9 +27,11 @@ import { TitleBar, useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { sendManualEmail, getSettings } from "../models/subscription.server";
+import { classifyAndStore } from "../models/customer.server";
 import { DEFAULT_HEADER, DEFAULT_FOOTER } from "../email-templates.server";
 import { resolveStockLocations, getAvailability } from "../models/inventory.server";
 import { useT, translate, type Lang } from "../i18n";
+import { CTYPE_LABEL, CTYPE_TONE } from "../customer-types";
 import { productCard, CUSTOMER_CARD } from "../email-cards";
 import { EmailEditor } from "../components/EmailEditor";
 
@@ -39,6 +41,7 @@ function buildWhere(shop: string, sp: URLSearchParams): any {
   const q = sp.get("q")?.trim() ?? "";
   const marketing = sp.get("marketing") ?? "";
   const tag = sp.get("tag")?.trim() ?? "";
+  const ctype = sp.get("ctype")?.trim() ?? "";
   const from = sp.get("from") ?? "";
   const to = sp.get("to") ?? "";
   const where: any = {
@@ -46,6 +49,7 @@ function buildWhere(shop: string, sp: URLSearchParams): any {
     ...(status === "" ? { status: { not: "ARCHIVED" } } : { status }),
     ...(marketing === "yes" ? { marketingConsent: true } : marketing === "no" ? { marketingConsent: false } : {}),
     ...(tag ? { tags: { contains: tag } } : {}),
+    ...(ctype === "UNKNOWN" ? { customerType: null } : ctype ? { customerType: ctype } : {}),
     ...(q ? { OR: [
       { email: { contains: q, mode: "insensitive" } },
       { productTitle: { contains: q, mode: "insensitive" } },
@@ -158,6 +162,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       productTitle: r.productTitle, variantTitle: r.variantTitle,
       productImage: r.productImage, price: r.price, productHandle: r.productHandle,
       status: r.status, tags: r.tags, marketing: r.marketingConsent,
+      customerType: r.customerType,
       createdAt: r.createdAt.toISOString(),
       stockShop: avail[r.variantId]?.shop ?? null,
       stockEw: avail[r.variantId]?.ew ?? null,
@@ -176,11 +181,23 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
+  const { session, admin } = await authenticate.admin(request);
   const fd = await request.formData();
   const intent = String(fd.get("intent"));
   const lang: Lang = (await getSettings(session.shop)).uiLanguage === "zh" ? "zh" : "en";
   const tr = (zh: string, vars?: Record<string, string | number>) => translate(zh, lang, vars);
+
+  // 回填/刷新新老客分类：查 Shopify 客户档案，写回每个邮箱的全部订阅
+  if (intent === "reclassify") {
+    const onlyMissing = fd.get("onlyMissing") === "true";
+    const { classified, byType } = await classifyAndStore(admin, session.shop, { onlyMissing });
+    return {
+      ok: true,
+      message: tr("已分类 {n} 位客人：老客已下单 {a} · 老客未下单 {b} · 新客 {c}", {
+        n: classified, a: byType.ORDERED, b: byType.NO_ORDER, c: byType.NEW,
+      }),
+    };
+  }
 
   // 发送邮件：发给选中的订阅行
   if (intent === "sendmail") {
@@ -235,11 +252,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const expWhere = mode === "all" ? { shop: session.shop } : buildWhere(session.shop, sp);
     const all = await prisma.subscription.findMany({ where: expWhere, orderBy: { createdAt: "desc" } });
     const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
-    const header = "email,name,marketing,tags,product,variant,barcode,status,source,price,subscribedAt,notifiedAt,orderedAt\n";
+    const header = "email,name,marketing,customer_type,tags,product,variant,barcode,status,source,price,subscribedAt,notifiedAt,orderedAt\n";
     const body = all
       .map((r) => [
-        r.email, r.customerName, r.marketingConsent ? "Yes" : "No", r.tags,
-        r.productTitle, r.variantTitle, r.barcode, r.status, r.source, r.price,
+        r.email, r.customerName, r.marketingConsent ? "Yes" : "No", r.customerType ?? "",
+        r.tags, r.productTitle, r.variantTitle, r.barcode, r.status, r.source, r.price,
         r.createdAt.toISOString(), r.notifiedAt?.toISOString() ?? "", r.orderedAt?.toISOString() ?? "",
       ].map(esc).join(","))
       .join("\n");
@@ -266,7 +283,7 @@ type Row = {
   id: string; email: string; customerName: string | null;
   productTitle: string; variantTitle: string;
   productImage: string | null; price: string | null; productHandle: string | null;
-  status: string; tags: string; marketing: boolean; createdAt: string;
+  status: string; tags: string; marketing: boolean; customerType: string | null; createdAt: string;
   stockShop: number | null; stockEw: number | null;
   lastSend: { type: string; status: string; error: string | null; sentAt: string } | null;
 };
@@ -469,6 +486,10 @@ export default function Requests() {
                   value={searchInput} onChange={setSearchInput} clearButton onClearButtonClick={() => setSearchInput("")} autoComplete="off" />
               </Box>
               <InlineStack gap="200">
+                <Button
+                  loading={fetcher.state !== "idle" && fetcher.formData?.get("intent") === "reclassify"}
+                  onClick={() => fetcher.submit({ intent: "reclassify", onlyMissing: "true" }, { method: "POST" })}
+                >{t("识别新老客")}</Button>
                 <Button onClick={() => exportCsv("view")}>{t("导出当前筛选")}</Button>
                 <Button onClick={() => exportCsv("all")}>{t("导出全部")}</Button>
               </InlineStack>
@@ -490,6 +511,17 @@ export default function Requests() {
                   <Select label={t("标签")} labelInline
                     options={[{ label: t("全部标签"), value: "" }, ...allTags.map((tag) => ({ label: tag, value: tag }))]}
                     value={get("tag")} onChange={(v) => setParam("tag", v)} />
+                </Box>
+                <Box minWidth="170px">
+                  <Select label={t("客户类型")} labelInline
+                    options={[
+                      { label: t("全部"), value: "" },
+                      { label: t("老客·已下单"), value: "ORDERED" },
+                      { label: t("老客·未下单"), value: "NO_ORDER" },
+                      { label: t("新客"), value: "NEW" },
+                      { label: t("未分类"), value: "UNKNOWN" },
+                    ]}
+                    value={get("ctype")} onChange={(v) => setParam("ctype", v)} />
                 </Box>
                 <Box minWidth="150px">
                   <TextField label={t("从")} type="date"
@@ -544,7 +576,14 @@ export default function Requests() {
                   <IndexTable.Cell>
                     <Text as="span" variant="bodyMd">{r.email}</Text>
                     {r.customerName ? (<><br /><Text as="span" variant="bodySm" tone="subdued">{r.customerName}</Text></>) : null}
-                    {r.marketing ? (<><br /><Badge tone="success" size="small">Newsletter</Badge></>) : null}
+                    <Box paddingBlockStart="100">
+                      <InlineStack gap="100" wrap>
+                        {r.customerType ? (
+                          <Badge tone={CTYPE_TONE[r.customerType]} size="small">{t(CTYPE_LABEL[r.customerType] ?? r.customerType)}</Badge>
+                        ) : null}
+                        {r.marketing ? <Badge tone="success" size="small">Newsletter</Badge> : null}
+                      </InlineStack>
+                    </Box>
                   </IndexTable.Cell>
                   <IndexTable.Cell>
                     <BlockStack gap="050">

@@ -67,6 +67,7 @@ export interface SubscribeInput {
   price?: string | null;
   source?: string | null;
   locale?: string | null;
+  customerType?: string | null; // ORDERED | NO_ORDER | NEW
 }
 
 export async function createSubscription(input: SubscribeInput) {
@@ -104,6 +105,7 @@ export async function createSubscription(input: SubscribeInput) {
       productHandle: input.productHandle ?? undefined,
       productImage: input.productImage ?? undefined,
       price: input.price ?? undefined,
+      customerType: input.customerType ?? undefined,
     },
     create: {
       shop: input.shop,
@@ -120,6 +122,7 @@ export async function createSubscription(input: SubscribeInput) {
       price: input.price ?? null,
       source: input.source ?? "product_page",
       locale: input.locale ?? null,
+      customerType: input.customerType ?? null,
       status: "ACTIVE",
     },
   });
@@ -156,6 +159,7 @@ export async function createManualSubscription(
       barcode: input.barcode ?? undefined,
       productImage: input.productImage ?? undefined,
       price: input.price ?? undefined,
+      customerType: input.customerType ?? undefined,
     },
     create: {
       shop: input.shop,
@@ -171,6 +175,7 @@ export async function createManualSubscription(
       productImage: input.productImage ?? null,
       price: input.price ?? null,
       source: "manual",
+      customerType: input.customerType ?? null,
       status: input.status ?? "ACTIVE",
     },
   });

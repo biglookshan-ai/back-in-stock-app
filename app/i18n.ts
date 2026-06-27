@@ -319,6 +319,19 @@ const DICT: Record<string, string> = {
   "产品图片": "Product image",
   "店铺名称": "Store name",
   "退订链接": "Unsubscribe link",
+
+  // ── 新老客分类 ──────────────────────────────────────────────────
+  "客户类型": "Customer type",
+  "老客·已下单": "Returning · ordered",
+  "老客·未下单": "Returning · no order",
+  "新客": "New",
+  "未分类": "Unclassified",
+  "识别新老客": "Detect new/returning",
+  "订阅客人构成（按人去重）": "Customer breakdown (by person)",
+  "已分类 {n} 位客人：老客已下单 {a} · 老客未下单 {b} · 新客 {c}":
+    "Classified {n} customers: returning-ordered {a} · returning-no-order {b} · new {c}",
+  "有 {n} 位客人尚未识别，去订阅者或请求列表点「识别新老客」即可补齐。":
+    "{n} customers not yet classified — click “Detect new/returning” on the Subscribers or Requests page to fill them in.",
 };
 
 export function translate(zh: string, lang: Lang, vars?: Record<string, string | number>): string {

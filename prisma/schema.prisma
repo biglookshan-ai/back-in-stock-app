@@ -47,6 +47,7 @@ model Subscription {
   productImage     String? // 产品图（邮件产品卡用）
   price            String? // 格式化价格快照，如 "£749.95"
   status           String    @default("ACTIVE") // ACTIVE(等待) | NOTIFIED(已发送) | ORDERED(已订购) | CANCELLED
+  customerType     String? // 新老客分类：ORDERED(老客已下单) | NO_ORDER(老客未下单) | NEW(新客) | null(未分类)
   tags             String    @default("") // 手动标签，逗号分隔
   source           String? // product_page | collection
   locale           String?
@@ -59,6 +60,7 @@ model Subscription {
   @@unique([shop, email, variantId]) // 同邮箱同变体不重复订阅
   @@index([shop, variantId, status])
   @@index([shop, createdAt])
+  @@index([shop, customerType])
 }
 
 // ── 邮件模板（确认 / 到货） ────────────────────────────────────────

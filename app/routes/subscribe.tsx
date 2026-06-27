@@ -4,6 +4,7 @@ import type { ActionFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
 import { createSubscription } from "../models/subscription.server";
+import { classifyCustomer } from "../models/customer.server";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -81,9 +82,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     return json({ error: "variant_not_found" }, { status: 404 });
   }
 
+  // 新老客分类（查 Shopify 客户档案 + 下单数）；失败不阻塞订阅
+  const customerType = await classifyCustomer(admin, email);
+
   const { alreadySubscribed } = await createSubscription({
     shop,
     email: email.trim().toLowerCase(),
+    customerType,
     productId: variant.product.id,
     variantId: variant.id,
     barcode: variant.barcode ?? null, // ★ 权威 barcode

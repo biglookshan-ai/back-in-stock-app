@@ -36,13 +36,18 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       take: 10,
     }),
     prisma.subscription.findMany({ where: { shop }, select: { productId: true }, distinct: ["productId"] }),
-    prisma.subscription.findMany({ where: { shop }, select: { email: true }, distinct: ["email"] }),
+    prisma.subscription.findMany({ where: { shop }, select: { email: true, customerType: true }, distinct: ["email"] }),
   ]);
+
+  // 新老客（按人去重）：老客已下单 / 老客未下单 / 新客 / 未分类
+  const ctype = { ORDERED: 0, NO_ORDER: 0, NEW: 0, UNKNOWN: 0 };
+  for (const c of customers) ctype[(c.customerType ?? "UNKNOWN") as keyof typeof ctype]++;
 
   return {
     total, active, notified, ordered, emailsSent, top,
     productCount: products.length,
     customerCount: customers.length,
+    ctype,
   };
 };
 
@@ -80,7 +85,7 @@ function NavTile({ to, title, value, hint }: { to: string; title: string; value:
 }
 
 export default function Dashboard() {
-  const { total, active, notified, ordered, emailsSent, top, productCount, customerCount } =
+  const { total, active, notified, ordered, emailsSent, top, productCount, customerCount, ctype } =
     useLoaderData<typeof loader>();
   const t = useT();
 
@@ -101,6 +106,28 @@ export default function Dashboard() {
           <NavTile to="/app/products" title={t("所有产品")} value={productCount} hint={t("查看产品订阅 →")} />
           <NavTile to="/app/subscribers" title={t("所有客人")} value={customerCount} hint={t("查看订阅者 →")} />
         </InlineGrid>
+
+        <Card>
+          <BlockStack gap="300">
+            <InlineStack align="space-between" blockAlign="center">
+              <Text as="h2" variant="headingMd">{t("订阅客人构成（按人去重）")}</Text>
+              <RemixLink to="/app/subscribers" style={{ textDecoration: "none" }}>
+                <Text as="span" variant="bodySm" tone="subdued">{t("查看订阅者 →")}</Text>
+              </RemixLink>
+            </InlineStack>
+            <InlineGrid columns={{ xs: 2, sm: 4 }} gap="400">
+              <Stat label={t("老客·已下单")} value={ctype.ORDERED} />
+              <Stat label={t("老客·未下单")} value={ctype.NO_ORDER} />
+              <Stat label={t("新客")} value={ctype.NEW} />
+              <Stat label={t("未分类")} value={ctype.UNKNOWN} />
+            </InlineGrid>
+            {ctype.UNKNOWN > 0 ? (
+              <Text as="p" variant="bodySm" tone="subdued">
+                {t("有 {n} 位客人尚未识别，去订阅者或请求列表点「识别新老客」即可补齐。", { n: ctype.UNKNOWN })}
+              </Text>
+            ) : null}
+          </BlockStack>
+        </Card>
 
         <Layout>
           <Layout.Section>
