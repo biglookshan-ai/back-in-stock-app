@@ -27,7 +27,7 @@ import { TitleBar, useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { sendManualEmail, getSettings } from "../models/subscription.server";
-import { classifyAndStore } from "../models/customer.server";
+import { classifyAndStore, importNewNewsletterToShopify } from "../models/customer.server";
 import { DEFAULT_HEADER, DEFAULT_FOOTER } from "../email-templates.server";
 import { resolveStockLocations, getAvailability } from "../models/inventory.server";
 import { useT, translate, type Lang } from "../i18n";
@@ -110,7 +110,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const q = url.searchParams.get("q")?.trim() ?? "";
   const where = buildWhere(shop, url.searchParams);
 
-  const [rows, counts, filteredCount, customTemplates, settings, tagRows] = await Promise.all([
+  // 客户类型各档计数（沿用其它筛选，但忽略 ctype 本身，便于看每档有多少）
+  const spNoCtype = new URLSearchParams(url.searchParams);
+  spNoCtype.delete("ctype");
+  const ctypeWhere = buildWhere(shop, spNoCtype);
+
+  const [rows, counts, filteredCount, customTemplates, settings, tagRows, ctypeGroups, importable] = await Promise.all([
     prisma.subscription.findMany({ where, orderBy: { createdAt: "desc" }, take: 500 }),
     prisma.subscription.groupBy({ by: ["status"], where: { shop }, _count: { _all: true } }),
     prisma.subscription.count({ where }),
@@ -121,7 +126,16 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     }),
     getSettings(shop),
     prisma.subscription.findMany({ where: { shop, tags: { not: "" } }, select: { tags: true } }),
+    prisma.subscription.groupBy({ by: ["customerType"], where: ctypeWhere, _count: { _all: true } }),
+    prisma.subscription.findMany({ where: { shop, customerType: "NEW", marketingConsent: true }, select: { email: true }, distinct: ["email"] }),
   ]);
+
+  // 客户类型计数：null 归为 UNKNOWN
+  const ctypeCounts = { ORDERED: 0, NO_ORDER: 0, NEW: 0, UNKNOWN: 0 };
+  ctypeGroups.forEach((g) => {
+    ctypeCounts[(g.customerType ?? "UNKNOWN") as keyof typeof ctypeCounts] = g._count._all;
+  });
+  const importableCount = importable.length;
 
   // 已用过的全部标签（去重排序），供编辑/筛选下拉
   const allTags = Array.from(
@@ -169,6 +183,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       lastSend: lastSendMap[r.id] ?? null,
     })),
     counts: countMap, status, q, filteredCount, customTemplates, allTags,
+    ctypeCounts, importableCount,
     shop,
     stockNames: { shopName: loc.shopName, ewName: loc.ewName },
     globalHeader: settings.emailHeader || DEFAULT_HEADER,
@@ -195,6 +210,18 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       ok: true,
       message: tr("已分类 {n} 位客人：老客已下单 {a} · 老客未下单 {b} · 新客 {c}", {
         n: classified, a: byType.ORDERED, b: byType.NO_ORDER, c: byType.NEW,
+      }),
+    };
+  }
+
+  // 把「新客 + 已订阅 Newsletter」导入 Shopify 客户库（带营销同意）
+  if (intent === "import_customers") {
+    const { created, existed, failed, total } = await importNewNewsletterToShopify(admin, session.shop);
+    if (total === 0) return { ok: true, message: tr("没有「新客且已订阅 Newsletter」的客人可导入") };
+    return {
+      ok: true,
+      message: tr("导入完成：新建 {created} · 已存在 {existed} · 失败 {failed}（共 {total}）", {
+        created, existed, failed, total,
       }),
     };
   }
@@ -303,10 +330,12 @@ const MAIL_KIND: Record<string, { label: string; auto: boolean }> = {
 type CustomTpl = { id: string; name: string; subject: string; htmlBody: string; useGlobalShell: boolean };
 
 export default function Requests() {
-  const { rows, counts, status, q, customTemplates, allTags, shop, brand, globalHeader, globalFooter, stockNames } =
+  const { rows, counts, status, q, customTemplates, allTags, ctypeCounts, importableCount, shop, brand, globalHeader, globalFooter, stockNames } =
     useLoaderData<typeof loader>() as {
       rows: Row[]; counts: Record<string, number>; status: string; q: string;
       filteredCount: number; customTemplates: CustomTpl[]; allTags: string[];
+      ctypeCounts: { ORDERED: number; NO_ORDER: number; NEW: number; UNKNOWN: number };
+      importableCount: number;
       shop: string; brand: Record<string, string>;
       globalHeader: string; globalFooter: string;
       stockNames: { shopName: string; ewName: string };
@@ -339,6 +368,13 @@ export default function Requests() {
   // 行选择
   const { selectedResources, allResourcesSelected, handleSelectionChange } =
     useIndexResourceState(rows as unknown as { [key: string]: unknown; id: string }[]);
+
+  // 导入 Shopify 客户库 确认 modal
+  const [importOpen, setImportOpen] = useState(false);
+  const doImport = () => {
+    fetcher.submit({ intent: "import_customers" }, { method: "POST" });
+    setImportOpen(false);
+  };
 
   // 发送邮件 modal
   const [sendOpen, setSendOpen] = useState(false);
@@ -490,6 +526,11 @@ export default function Requests() {
                   loading={fetcher.state !== "idle" && fetcher.formData?.get("intent") === "reclassify"}
                   onClick={() => fetcher.submit({ intent: "reclassify", onlyMissing: "true" }, { method: "POST" })}
                 >{t("识别新老客")}</Button>
+                <Button
+                  disabled={importableCount === 0}
+                  loading={fetcher.state !== "idle" && fetcher.formData?.get("intent") === "import_customers"}
+                  onClick={() => setImportOpen(true)}
+                >{importableCount > 0 ? t("导入新客到 Shopify ({n})", { n: importableCount }) : t("导入新客到 Shopify")}</Button>
                 <Button onClick={() => exportCsv("view")}>{t("导出当前筛选")}</Button>
                 <Button onClick={() => exportCsv("all")}>{t("导出全部")}</Button>
               </InlineStack>
@@ -515,11 +556,11 @@ export default function Requests() {
                 <Box minWidth="170px">
                   <Select label={t("客户类型")} labelInline
                     options={[
-                      { label: t("全部"), value: "" },
-                      { label: t("老客·已下单"), value: "ORDERED" },
-                      { label: t("老客·未下单"), value: "NO_ORDER" },
-                      { label: t("新客"), value: "NEW" },
-                      { label: t("未分类"), value: "UNKNOWN" },
+                      { label: `${t("全部")} (${ctypeCounts.ORDERED + ctypeCounts.NO_ORDER + ctypeCounts.NEW + ctypeCounts.UNKNOWN})`, value: "" },
+                      { label: `${t("老客·已下单")} (${ctypeCounts.ORDERED})`, value: "ORDERED" },
+                      { label: `${t("老客·未下单")} (${ctypeCounts.NO_ORDER})`, value: "NO_ORDER" },
+                      { label: `${t("新客")} (${ctypeCounts.NEW})`, value: "NEW" },
+                      { label: `${t("未分类")} (${ctypeCounts.UNKNOWN})`, value: "UNKNOWN" },
                     ]}
                     value={get("ctype")} onChange={(v) => setParam("ctype", v)} />
                 </Box>
@@ -646,6 +687,25 @@ export default function Requests() {
           )}
         </Tabs>
       </Card>
+
+      <Modal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        title={t("导入新客到 Shopify 客户库")}
+        primaryAction={{ content: t("确认导入 {n} 位", { n: importableCount }), onAction: doImport, disabled: importableCount === 0 }}
+        secondaryActions={[{ content: t("取消"), onAction: () => setImportOpen(false) }]}
+      >
+        <Modal.Section>
+          <BlockStack gap="200">
+            <Text as="p">
+              {t("将把 {n} 位「新客 + 已订阅 Newsletter」的客人创建为 Shopify 客户，并标记为「已订阅邮件营销」。", { n: importableCount })}
+            </Text>
+            <Text as="p" tone="subdued" variant="bodySm">
+              {t("这些客人都在订阅时勾选了 Newsletter，因此按已同意营销导入。已存在的邮箱会自动跳过。导入后他们会从「新客」变为「老客·未下单」。")}
+            </Text>
+          </BlockStack>
+        </Modal.Section>
+      </Modal>
 
       <Modal
         open={tagEditId !== null}

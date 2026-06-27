@@ -332,6 +332,19 @@ const DICT: Record<string, string> = {
     "Classified {n} customers: returning-ordered {a} · returning-no-order {b} · new {c}",
   "有 {n} 位客人尚未识别，去订阅者或请求列表点「识别新老客」即可补齐。":
     "{n} customers not yet classified — click “Detect new/returning” on the Subscribers or Requests page to fill them in.",
+
+  // ── 导入 Shopify 客户库 ─────────────────────────────────────────
+  "导入新客到 Shopify": "Import new customers to Shopify",
+  "导入新客到 Shopify ({n})": "Import new customers to Shopify ({n})",
+  "导入新客到 Shopify 客户库": "Import new customers to Shopify",
+  "确认导入 {n} 位": "Import {n} customers",
+  "将把 {n} 位「新客 + 已订阅 Newsletter」的客人创建为 Shopify 客户，并标记为「已订阅邮件营销」。":
+    "This will create {n} customers (new + Newsletter-subscribed) as Shopify customers, marked as subscribed to email marketing.",
+  "这些客人都在订阅时勾选了 Newsletter，因此按已同意营销导入。已存在的邮箱会自动跳过。导入后他们会从「新客」变为「老客·未下单」。":
+    "These customers opted into the Newsletter when subscribing, so they are imported as marketing-consented. Existing emails are skipped. After import they move from “New” to “Returning · no order”.",
+  "没有「新客且已订阅 Newsletter」的客人可导入": "No new + Newsletter-subscribed customers to import",
+  "导入完成：新建 {created} · 已存在 {existed} · 失败 {failed}（共 {total}）":
+    "Import done: created {created} · existed {existed} · failed {failed} (of {total})",
 };
 
 export function translate(zh: string, lang: Lang, vars?: Record<string, string | number>): string {
