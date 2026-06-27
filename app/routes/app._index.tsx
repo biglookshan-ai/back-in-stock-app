@@ -68,18 +68,6 @@ function Stat({ label, value }: { label: string; value: number }) {
   );
 }
 
-// 卡片标题 + 右侧跳转链接
-function SectionHead({ title, to, link }: { title: string; to: string; link: string }) {
-  return (
-    <InlineStack align="space-between" blockAlign="center">
-      <Text as="h2" variant="headingMd">{title}</Text>
-      <RemixLink to={to} style={{ textDecoration: "none" }}>
-        <Text as="span" variant="bodySm" tone="subdued">{link}</Text>
-      </RemixLink>
-    </InlineStack>
-  );
-}
-
 export default function Dashboard() {
   const { total, active, notified, ordered, emailsSent, restockAuto, restockManual, top, productCount, customerCount, ctype } =
     useLoaderData<typeof loader>();
@@ -110,7 +98,7 @@ export default function Dashboard() {
         {/* 客人：按人去重 + 新老客构成 */}
         <Card>
           <BlockStack gap="300">
-            <SectionHead title={t("客人")} to="/app/subscribers" link={t("查看订阅者 →")} />
+            <Text as="h2" variant="headingMd">{t("客人")}</Text>
             <InlineGrid columns={{ xs: 2, sm: 5 }} gap="400">
               <Stat label={t("总人数")} value={customerCount} />
               <Stat label={t("老客·已下单")} value={ctype.ORDERED} />
@@ -123,6 +111,11 @@ export default function Dashboard() {
                 {t("有 {n} 位客人尚未识别，去订阅者或请求列表点「识别新老客」即可补齐。", { n: ctype.UNKNOWN })}
               </Text>
             ) : null}
+            <InlineStack>
+              <RemixLink to="/app/subscribers" style={{ textDecoration: "none" }}>
+                <Text as="span" variant="bodySm" tone="subdued">{t("查看订阅者 →")}</Text>
+              </RemixLink>
+            </InlineStack>
           </BlockStack>
         </Card>
 
@@ -143,14 +136,9 @@ export default function Dashboard() {
           <Layout.Section>
             <Card padding="0">
               <Box padding="400">
-                <InlineStack align="space-between" blockAlign="center">
-                  <Text as="h2" variant="headingMd">
-                    {t("热门缺货商品（待发提醒 Top 10）")}
-                  </Text>
-                  <RemixLink to="/app/products" style={{ textDecoration: "none" }}>
-                    <Text as="span" variant="bodySm" tone="subdued">{t("查看产品订阅（{n} 个商品）→", { n: productCount })}</Text>
-                  </RemixLink>
-                </InlineStack>
+                <Text as="h2" variant="headingMd">
+                  {t("热门缺货商品（待发提醒 Top 10）")}
+                </Text>
               </Box>
               {top.length === 0 ? (
                 <EmptyState heading={t("还没有订阅数据")} image="">
@@ -179,6 +167,11 @@ export default function Dashboard() {
                   ))}
                 </IndexTable>
               )}
+              <Box padding="400" borderColor="border" borderBlockStartWidth="025">
+                <RemixLink to="/app/products" style={{ textDecoration: "none" }}>
+                  <Text as="span" variant="bodySm" tone="subdued">{t("查看产品订阅（{n} 个商品）→", { n: productCount })}</Text>
+                </RemixLink>
+              </Box>
             </Card>
           </Layout.Section>
         </Layout>
