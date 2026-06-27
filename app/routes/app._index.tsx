@@ -125,9 +125,9 @@ export default function Dashboard() {
             <Text as="h2" variant="headingMd">{t("邮件")}</Text>
             <InlineGrid columns={{ xs: 2, sm: 4 }} gap="400">
               <Stat label={t("累计发信成功")} value={emailsSent} />
+              <Stat label={t("等待发送（等待中）")} value={active} />
               <Stat label={t("有货通知·自动")} value={restockAuto} />
               <Stat label={t("有货通知·手动")} value={restockManual} />
-              <Stat label={t("等待发送（等待中）")} value={active} />
             </InlineGrid>
           </BlockStack>
         </Card>
