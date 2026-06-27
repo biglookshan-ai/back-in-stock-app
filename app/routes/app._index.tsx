@@ -22,12 +22,14 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
   const shop = session.shop;
 
-  const [total, active, notified, ordered, emailsSent, top, products, customers] = await Promise.all([
+  const [total, active, notified, ordered, emailsSent, restockAuto, restockManual, top, products, customers] = await Promise.all([
     prisma.subscription.count({ where: { shop } }),
     prisma.subscription.count({ where: { shop, status: "ACTIVE" } }),
     prisma.subscription.count({ where: { shop, status: "NOTIFIED" } }),
     prisma.subscription.count({ where: { shop, status: "ORDERED" } }),
     prisma.emailLog.count({ where: { shop, status: "SENT" } }),
+    prisma.emailLog.count({ where: { shop, status: "SENT", type: "BACK_IN_STOCK" } }),
+    prisma.emailLog.count({ where: { shop, status: "SENT", type: "MANUAL" } }),
     prisma.subscription.groupBy({
       by: ["variantId", "productTitle", "variantTitle"],
       where: { shop, status: "ACTIVE" },
@@ -44,7 +46,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   for (const c of customers) ctype[(c.customerType ?? "UNKNOWN") as keyof typeof ctype]++;
 
   return {
-    total, active, notified, ordered, emailsSent, top,
+    total, active, notified, ordered, emailsSent, restockAuto, restockManual, top,
     productCount: products.length,
     customerCount: customers.length,
     ctype,
@@ -79,7 +81,7 @@ function SectionHead({ title, to, link }: { title: string; to: string; link: str
 }
 
 export default function Dashboard() {
-  const { total, active, notified, ordered, emailsSent, top, productCount, customerCount, ctype } =
+  const { total, active, notified, ordered, emailsSent, restockAuto, restockManual, top, productCount, customerCount, ctype } =
     useLoaderData<typeof loader>();
   const t = useT();
 
@@ -90,17 +92,18 @@ export default function Dashboard() {
         {/* 订阅：状态维度 */}
         <Card>
           <BlockStack gap="300">
-            <SectionHead title={t("订阅")} to="/app/requests" link={t("查看请求列表 →")} />
+            <Text as="h2" variant="headingMd">{t("订阅")}</Text>
             <InlineGrid columns={{ xs: 2, sm: 4 }} gap="400">
               <Stat label={t("总订阅数")} value={total} />
               <Stat label={t("待发提醒（等待中）")} value={active} />
               <Stat label={t("已通知（已发送）")} value={notified} />
               <Stat label={t("转化（已订购）")} value={ordered} />
             </InlineGrid>
-            <Text as="p" variant="bodySm" tone="subdued">
-              {t("涉及 {n} 个商品", { n: productCount })} ·{" "}
-              <RemixLink to="/app/products" style={{ textDecoration: "underline", color: "inherit" }}>{t("查看产品订阅 →")}</RemixLink>
-            </Text>
+            <InlineStack>
+              <RemixLink to="/app/requests" style={{ textDecoration: "none" }}>
+                <Text as="span" variant="bodySm" tone="subdued">{t("查看请求列表 →")}</Text>
+              </RemixLink>
+            </InlineStack>
           </BlockStack>
         </Card>
 
@@ -129,6 +132,9 @@ export default function Dashboard() {
             <Text as="h2" variant="headingMd">{t("邮件")}</Text>
             <InlineGrid columns={{ xs: 2, sm: 4 }} gap="400">
               <Stat label={t("累计发信成功")} value={emailsSent} />
+              <Stat label={t("有货通知·自动")} value={restockAuto} />
+              <Stat label={t("有货通知·手动")} value={restockManual} />
+              <Stat label={t("等待发送（等待中）")} value={active} />
             </InlineGrid>
           </BlockStack>
         </Card>
@@ -137,9 +143,14 @@ export default function Dashboard() {
           <Layout.Section>
             <Card padding="0">
               <Box padding="400">
-                <Text as="h2" variant="headingMd">
-                  {t("热门缺货商品（待发提醒 Top 10）")}
-                </Text>
+                <InlineStack align="space-between" blockAlign="center">
+                  <Text as="h2" variant="headingMd">
+                    {t("热门缺货商品（待发提醒 Top 10）")}
+                  </Text>
+                  <RemixLink to="/app/products" style={{ textDecoration: "none" }}>
+                    <Text as="span" variant="bodySm" tone="subdued">{t("查看产品订阅（{n} 个商品）→", { n: productCount })}</Text>
+                  </RemixLink>
+                </InlineStack>
               </Box>
               {top.length === 0 ? (
                 <EmptyState heading={t("还没有订阅数据")} image="">
