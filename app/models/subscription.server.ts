@@ -9,6 +9,10 @@ import {
   DEFAULT_HEADER,
   DEFAULT_FOOTER,
 } from "../email-templates.server";
+import { fetchLiveCardVars, type LiveCardVars } from "./live-product.server";
+
+// 发信时可拿到的 admin client（用于拉实时产品信息渲染产品卡）
+type AdminClient = { graphql: (q: string, opts?: any) => Promise<Response> };
 
 const SIGN_SECRET = process.env.SHOPIFY_API_SECRET || "dev-secret";
 
@@ -216,7 +220,7 @@ async function sendConfirmation(subscriptionId: string) {
 // ── 到货群发 ──────────────────────────────────────────────────────
 // inventory webhook 调用：把某 variant 的所有 ACTIVE 订阅发「到货」信。
 // v1 内联顺序发送（带每封间隔，温和限速）。量大时可替换为 BullMQ + Redis。
-export async function notifyVariantRestocked(shop: string, variantId: string) {
+export async function notifyVariantRestocked(shop: string, variantId: string, admin?: AdminClient) {
   // 设置里关闭了「到货自动发提醒」则不发（订阅保持 ACTIVE，可改回开后或手动发）
   const settings = await getSettings(shop);
   if (!settings.autoRestockEnabled) return { notified: 0, skipped: true };
@@ -227,10 +231,13 @@ export async function notifyVariantRestocked(shop: string, variantId: string) {
   });
   if (subs.length === 0) return { notified: 0 };
 
+  // 产品卡用「当前最新」信息（同一变体只需拉一次）；拿不到 admin 或失败则回退快照
+  const live = admin ? (await fetchLiveCardVars(admin, [variantId]))[variantId] : undefined;
+
   const tpl = await getTemplate(shop, "BACK_IN_STOCK");
   let notified = 0;
   for (const sub of subs) {
-    const res = await sendEmail(sub, "BACK_IN_STOCK", tpl);
+    const res = await sendEmail(sub, "BACK_IN_STOCK", tpl, live);
     if (res.ok) {
       await prisma.subscription.update({
         where: { id: sub.id },
@@ -245,15 +252,19 @@ export async function notifyVariantRestocked(shop: string, variantId: string) {
 
 // ── 手动群发（对一批订阅发自定义内容，记 EmailLog type=MANUAL）──────
 export async function sendManualEmail(
-  subs: Array<Parameters<typeof sendEmail>[0]>,
+  subs: Array<Parameters<typeof sendEmail>[0] & { variantId: string }>,
   subject: string,
   htmlBody: string,
   useGlobalShell = true,
+  admin?: AdminClient,
 ) {
+  // 产品卡用「当前最新」信息：一次性批量拉所有涉及的变体；失败/拿不到 admin 则回退快照
+  const liveMap = admin ? await fetchLiveCardVars(admin, subs.map((s) => s.variantId)) : {};
+
   let sent = 0;
   const sentIds: string[] = [];
   for (const sub of subs) {
-    const res = await sendEmail(sub, "MANUAL", { subject, htmlBody, useGlobalShell });
+    const res = await sendEmail(sub, "MANUAL", { subject, htmlBody, useGlobalShell }, liveMap[sub.variantId]);
     if (res.ok) { sent++; sentIds.push(sub.id); }
     await new Promise((r) => setTimeout(r, 150)); // 温和限速
   }
@@ -283,11 +294,20 @@ async function sendEmail(
   },
   type: string, // CONFIRMATION | BACK_IN_STOCK | MANUAL
   tpl: { subject: string; htmlBody: string; useGlobalShell?: boolean },
+  live?: LiveCardVars, // 传入则用「当前最新」产品信息渲染产品卡（不改快照）
 ) {
   const settings = await getSettings(sub.shop);
   const appUrl = process.env.SHOPIFY_APP_URL || "";
+  // 产品卡字段：优先用实时信息（live），缺失则回退订阅快照
+  const card = {
+    productTitle: live?.productTitle ?? sub.productTitle,
+    variantTitle: live?.variantTitle ?? sub.variantTitle,
+    productImage: live?.productImage ?? sub.productImage,
+    price: live?.price ?? sub.price,
+    productHandle: live?.productHandle ?? sub.productHandle,
+  };
   const variantLabel =
-    sub.variantTitle && sub.variantTitle !== "Default Title" ? sub.variantTitle : "";
+    card.variantTitle && card.variantTitle !== "Default Title" ? card.variantTitle : "";
   // 用全局页眉/页脚时：把「正文」包进全局外壳（设置为空则用内置默认）。
   const rawHtml = tpl.useGlobalShell
     ? composeEmail(
@@ -299,11 +319,11 @@ async function sendEmail(
   const { subject, html } = renderTemplate({ subject: tpl.subject, htmlBody: rawHtml }, {
     customer_email: sub.email,
     customer_name: sub.customerName ?? "",
-    product_title: sub.productTitle,
+    product_title: card.productTitle,
     variant_title: variantLabel,
-    product_image: sub.productImage ?? "",
-    product_price: sub.price ?? "",
-    product_url: productUrl(sub.shop, sub.productHandle, sub.variantId),
+    product_image: card.productImage ?? "",
+    product_price: card.price ?? "",
+    product_url: productUrl(sub.shop, card.productHandle, sub.variantId),
     shop_name: settings.fromName,
     brand_logo: settings.logoUrl,
     brand_color: settings.brandColor,

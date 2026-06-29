@@ -5,7 +5,7 @@ import { authenticate } from "../shopify.server";
 import { notifyVariantRestocked } from "../models/subscription.server";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  const { shop, topic, payload } = await authenticate.webhook(request);
+  const { shop, topic, payload, admin } = await authenticate.webhook(request);
   console.log(`[webhook] ${topic} for ${shop}`);
 
   const variants =
@@ -15,7 +15,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   for (const v of variants) {
     if ((v.inventory_quantity ?? 0) > 0) {
       const gid = `gid://shopify/ProductVariant/${v.id}`;
-      const { notified } = await notifyVariantRestocked(shop, gid);
+      const { notified } = await notifyVariantRestocked(shop, gid, admin ?? undefined);
       if (notified) console.log(`[webhook] product restock ${gid} → 发信 ${notified} 封`);
     }
   }

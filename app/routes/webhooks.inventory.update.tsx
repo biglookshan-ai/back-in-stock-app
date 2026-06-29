@@ -84,7 +84,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   }
 
   if (shouldNotify) {
-    const { notified } = await notifyVariantRestocked(shop, variant.id);
+    const { notified } = await notifyVariantRestocked(shop, variant.id, admin ?? undefined);
     if (notified)
       console.log(`[webhook] restock ${variant.id} (库存 ${total}) → 发信 ${notified} 封`);
   }

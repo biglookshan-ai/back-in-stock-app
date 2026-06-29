@@ -237,7 +237,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const subs = await prisma.subscription.findMany({
       where: { shop: session.shop, id: { in: ids } },
     });
-    const sent = await sendManualEmail(subs, subject, htmlBody, useGlobalShell);
+    const sent = await sendManualEmail(subs, subject, htmlBody, useGlobalShell, admin);
     return { ok: true, message: tr("已发送 {n} 封", { n: sent }) };
   }
 
