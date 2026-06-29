@@ -55,12 +55,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     return json({ error: "invalid_email" }, { status: 422 });
   }
 
-  // ── 限流：同 IP 20 次/10 分钟；同邮箱 6 次/小时（挡批量灌库 + 邮件轰炸） ──
+  // ── 限流（两层独立防护，挡批量灌库 + 邮件轰炸） ──
+  //   IP 是挡洪水的主力：同一来源 30 次/10 分钟
+  //   邮箱只是防呆上限，放宽：同一邮箱 20 次/小时（真实客人订多个缺货品也够用）
   const ip = clientIp(request);
   const emailKey = email.trim().toLowerCase();
   if (
-    !allow(`bis:ip:${shop}:${ip}`, 20, 10 * 60 * 1000) ||
-    !allow(`bis:email:${shop}:${emailKey}`, 6, 60 * 60 * 1000)
+    !allow(`bis:ip:${shop}:${ip}`, 30, 10 * 60 * 1000) ||
+    !allow(`bis:email:${shop}:${emailKey}`, 20, 60 * 60 * 1000)
   ) {
     return json({ error: "rate_limited" }, { status: 429 });
   }
