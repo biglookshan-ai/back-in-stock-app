@@ -5,6 +5,8 @@ import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
 import { createSubscription } from "../models/subscription.server";
 import { classifyCustomer } from "../models/customer.server";
+import { allow, clientIp } from "../rate-limit.server";
+import { isDisposableEmail } from "../disposable-domains.server";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -46,6 +48,21 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   }
   if (!variantId) {
     return json({ error: "missing_variant" }, { status: 422 });
+  }
+
+  // ── 一次性/临时邮箱拦截 ──
+  if (isDisposableEmail(email)) {
+    return json({ error: "invalid_email" }, { status: 422 });
+  }
+
+  // ── 限流：同 IP 20 次/10 分钟；同邮箱 6 次/小时（挡批量灌库 + 邮件轰炸） ──
+  const ip = clientIp(request);
+  const emailKey = email.trim().toLowerCase();
+  if (
+    !allow(`bis:ip:${shop}:${ip}`, 20, 10 * 60 * 1000) ||
+    !allow(`bis:email:${shop}:${emailKey}`, 6, 60 * 60 * 1000)
+  ) {
+    return json({ error: "rate_limited" }, { status: 429 });
   }
 
   // ── Admin API 复核变体（防篡改 + 拿权威 barcode/标题/handle） ──
