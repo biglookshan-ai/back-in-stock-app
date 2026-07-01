@@ -58,8 +58,8 @@ export function wrapEmailBody(header: string, body: string, footer: string) {
       .bis-center-sm{text-align:center!important;}
       .bis-pt-sm{padding-top:16px!important;}
       .bis-body{padding:20px!important;}
-      .bis-foot{padding-left:16px!important;padding-right:16px!important;}
-      .bis-foot-map{width:120px!important;max-width:120px!important;}
+      .bis-foot{padding-left:14px!important;padding-right:14px!important;}
+      .bis-foot-map{width:110px!important;max-width:110px!important;}
     }
   </style></head><body style="margin:0;padding:0;">${outer}</body></html>`;
 }
