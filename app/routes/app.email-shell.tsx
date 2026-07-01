@@ -10,7 +10,7 @@ import { TitleBar, useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { getSettings } from "../models/subscription.server";
-import { DEFAULT_HEADER, DEFAULT_FOOTER } from "../email-templates.server";
+import { DEFAULT_HEADER, DEFAULT_FOOTER, effectiveHeader, effectiveFooter } from "../email-templates.server";
 import { wrapEmailBody } from "../email-blocks";
 import { useT, translate, type Lang } from "../i18n";
 
@@ -18,8 +18,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
   const settings = await getSettings(session.shop);
   return {
-    header: settings.emailHeader,
-    footer: settings.emailFooter,
+    header: effectiveHeader(settings.emailHeader),
+    footer: effectiveFooter(settings.emailFooter),
     defaultHeader: DEFAULT_HEADER,
     defaultFooter: DEFAULT_FOOTER,
     brand: {

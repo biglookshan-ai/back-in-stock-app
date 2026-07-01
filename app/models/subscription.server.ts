@@ -8,6 +8,8 @@ import {
   composeEmail,
   DEFAULT_HEADER,
   DEFAULT_FOOTER,
+  effectiveHeader,
+  effectiveFooter,
 } from "../email-templates.server";
 import { fetchLiveCardVars, type LiveCardVars } from "./live-product.server";
 
@@ -311,9 +313,9 @@ async function sendEmail(
   // 用全局页眉/页脚时：把「正文」包进全局外壳（设置为空则用内置默认）。
   const rawHtml = tpl.useGlobalShell
     ? composeEmail(
-        settings.emailHeader || DEFAULT_HEADER,
+        effectiveHeader(settings.emailHeader),
         tpl.htmlBody,
-        settings.emailFooter || DEFAULT_FOOTER,
+        effectiveFooter(settings.emailFooter),
       )
     : tpl.htmlBody;
   const { subject, html } = renderTemplate({ subject: tpl.subject, htmlBody: rawHtml }, {

@@ -29,7 +29,7 @@ import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { sendManualEmail, getSettings } from "../models/subscription.server";
 import { classifyAndStore, importNewNewsletterToShopify } from "../models/customer.server";
-import { DEFAULT_HEADER, DEFAULT_FOOTER } from "../email-templates.server";
+import { DEFAULT_HEADER, DEFAULT_FOOTER, effectiveHeader, effectiveFooter } from "../email-templates.server";
 import { resolveStockLocations, getAvailability } from "../models/inventory.server";
 import { useT, translate, type Lang } from "../i18n";
 import { CTYPE_LABEL, CTYPE_TONE } from "../customer-types";
@@ -189,8 +189,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     ctypeCounts, importableCount,
     shop,
     stockNames: { shopName: loc.shopName, ewName: loc.ewName },
-    globalHeader: settings.emailHeader || DEFAULT_HEADER,
-    globalFooter: settings.emailFooter || DEFAULT_FOOTER,
+    globalHeader: effectiveHeader(settings.emailHeader),
+    globalFooter: effectiveFooter(settings.emailFooter),
     brand: {
       shop_name: settings.fromName, brand_logo: settings.logoUrl, brand_color: settings.brandColor,
       website_url: settings.websiteUrl, company_address: settings.companyAddress, support_email: settings.supportEmail,

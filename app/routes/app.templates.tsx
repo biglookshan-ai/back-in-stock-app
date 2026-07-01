@@ -27,6 +27,8 @@ import {
   DEFAULT_TEMPLATES,
   DEFAULT_HEADER,
   DEFAULT_FOOTER,
+  effectiveHeader,
+  effectiveFooter,
   type TemplateType,
 } from "../email-templates.server";
 import { mailer } from "../mailer.server";
@@ -42,8 +44,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   ]);
   return {
     templates,
-    globalHeader: settings.emailHeader || DEFAULT_HEADER,
-    globalFooter: settings.emailFooter || DEFAULT_FOOTER,
+    globalHeader: effectiveHeader(settings.emailHeader),
+    globalFooter: effectiveFooter(settings.emailFooter),
     brand: {
       shop_name: settings.fromName,
       brand_logo: settings.logoUrl,
@@ -145,9 +147,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
     const fullBody = useGlobalShell
       ? composeEmail(
-          settings.emailHeader || DEFAULT_HEADER,
+          effectiveHeader(settings.emailHeader),
           htmlBody,
-          settings.emailFooter || DEFAULT_FOOTER,
+          effectiveFooter(settings.emailFooter),
         )
       : htmlBody;
     const { subject: s, html } = renderTemplate(

@@ -10,7 +10,7 @@ import { TitleBar, useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { getSettings } from "../models/subscription.server";
-import { DEFAULT_HEADER, DEFAULT_FOOTER, composeEmail, renderTemplate } from "../email-templates.server";
+import { DEFAULT_HEADER, DEFAULT_FOOTER, composeEmail, renderTemplate, effectiveHeader, effectiveFooter } from "../email-templates.server";
 import { mailer } from "../mailer.server";
 import { useT, translate, type Lang } from "../i18n";
 import { productCard, CUSTOMER_CARD } from "../email-cards";
@@ -27,8 +27,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   return {
     shop: session.shop,
     templates: templates.map((t) => ({ id: t.id, name: t.name, subject: t.subject, htmlBody: t.htmlBody, useGlobalShell: t.useGlobalShell })),
-    globalHeader: settings.emailHeader || DEFAULT_HEADER,
-    globalFooter: settings.emailFooter || DEFAULT_FOOTER,
+    globalHeader: effectiveHeader(settings.emailHeader),
+    globalFooter: effectiveFooter(settings.emailFooter),
     brand: {
       shop_name: settings.fromName, brand_logo: settings.logoUrl, brand_color: settings.brandColor,
       website_url: settings.websiteUrl, company_address: settings.companyAddress, support_email: settings.supportEmail,
@@ -97,7 +97,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
 
     const fullBody = useShell
-      ? composeEmail(settings.emailHeader || DEFAULT_HEADER, body0, settings.emailFooter || DEFAULT_FOOTER)
+      ? composeEmail(effectiveHeader(settings.emailHeader), body0, effectiveFooter(settings.emailFooter))
       : body0;
     const { subject: s, html } = renderTemplate({ subject: subject0, htmlBody: fullBody }, {
       ...pv,

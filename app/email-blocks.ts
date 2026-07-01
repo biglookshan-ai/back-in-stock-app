@@ -54,7 +54,8 @@ export function wrapEmailBody(header: string, body: string, footer: string) {
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>
     @media only screen and (max-width:480px){
       .bis-col{display:block!important;width:100%!important;box-sizing:border-box!important;}
-      .bis-img{display:block!important;margin-left:auto!important;margin-right:auto!important;}
+      .bis-img{width:100%!important;height:auto!important;max-width:100%!important;}
+      .bis-map{margin-left:auto!important;margin-right:auto!important;}
       .bis-center-sm{text-align:center!important;}
       .bis-pt-sm{padding-top:16px!important;}
       .bis-body{padding:20px!important;}
@@ -122,7 +123,7 @@ export function featureRows(items: Array<{ title: string; desc: string }>) {
       (it, i) => `
     <tr>
       <td width="30" valign="top" style="padding:${i ? "14px" : "0"} 12px 0 0;">
-        <div style="width:20px;height:20px;border-radius:50%;background:${GOLD};color:${INK};font-size:12px;font-weight:700;text-align:center;line-height:20px;">&#10003;</div>
+        <table role="presentation" cellpadding="0" cellspacing="0"><tr><td width="20" height="20" align="center" valign="middle" style="width:20px;height:20px;background:${GOLD};color:${INK};font-size:12px;font-weight:700;line-height:20px;border-radius:50%;mso-line-height-rule:exactly;">&#10003;</td></tr></table>
       </td>
       <td valign="top" style="padding:${i ? "14px" : "0"} 0 0 0;">
         <div style="font-size:13px;font-weight:700;color:${INK};">${it.title}</div>

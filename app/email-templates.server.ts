@@ -67,7 +67,7 @@ const FOOTER = `
         <div style="margin-top:10px;color:#bbbbbb;">London Showroom:<br>Unit 7, Victoria Park Industrial Centre<br>Rothbury Road, London E9 5HD</div>
       </td>
       <td align="right" class="bis-col bis-center-sm bis-pt-sm" style="padding:20px 26px;vertical-align:top;">
-        <a href="https://maps.google.com/?q=CINEGEARPRO+LTD+London+E9+5HD"><img class="bis-img" src="https://cdn.shopify.com/s/files/1/1258/4351/files/Cgp_map.jpg?v=1782477265" alt="Map to CINEGEARPRO, London E9 5HD" width="200" style="width:200px;max-width:200px;border:0;display:block;border-radius:4px;"></a>
+        <a href="https://maps.google.com/?q=CINEGEARPRO+LTD+London+E9+5HD"><img class="bis-map" src="https://cdn.shopify.com/s/files/1/1258/4351/files/Cgp_map.jpg?v=1782477265" alt="Map to CINEGEARPRO, London E9 5HD" width="200" style="width:200px;max-width:200px;border:0;display:block;border-radius:4px;"></a>
       </td>
     </tr></table>
     <div style="padding:6px 26px 24px;">
@@ -82,9 +82,20 @@ const FOOTER = `
   </td></tr>`;
 
 // ── 全局页眉/页脚的内置默认（设置里为空时用这个）──────────────────
-export const DEFAULT_HEADER = HEADER;
-export const DEFAULT_FOOTER = FOOTER;
+// 版本标记：内置默认页眉/页脚更新时递增。旧的「保存副本」若不含当前标记，
+// 视为过时 → 自动改用最新内置默认（省去用户每次手动 reset）。
+export const SHELL_TOKEN = "bis-shell-3";
+export const DEFAULT_HEADER = `${HEADER}<!--${SHELL_TOKEN}-->`;
+export const DEFAULT_FOOTER = `${FOOTER}<!--${SHELL_TOKEN}-->`;
 export const CUSTOMER_PRODUCT_CARD = PRODUCT_CARD; // 「插入客人产品卡」用
+
+// 解析实际使用的页眉/页脚：保存值含当前版本标记则用保存值，否则用最新内置默认。
+export function effectiveHeader(saved?: string | null): string {
+  return saved && saved.includes(SHELL_TOKEN) ? saved : DEFAULT_HEADER;
+}
+export function effectiveFooter(saved?: string | null): string {
+  return saved && saved.includes(SHELL_TOKEN) ? saved : DEFAULT_FOOTER;
+}
 
 // 外壳：把 页眉+正文+页脚 包进邮件外层表格。
 // 关键：正文放进独立 <td> 单元格，正文可为任意 HTML（div/table），
