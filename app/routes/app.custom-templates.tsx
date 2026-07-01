@@ -210,6 +210,30 @@ export default function CustomTemplates() {
         </InlineGrid>
       </Box>
 
+      {/* 常驻实时预览：含全局页眉/页脚，编辑时随时可见 */}
+      {sel ? (
+        <Box paddingBlockStart="400">
+          <Card>
+            <BlockStack gap="300">
+              <InlineStack align="space-between" blockAlign="center">
+                <Text as="h3" variant="headingMd">{t("实时预览")}</Text>
+                <Button variant="plain" onClick={() => setPreviewOpen(true)}>{t("放大预览")}</Button>
+              </InlineStack>
+              <Box borderRadius="200" borderWidth="025" borderColor="border" overflowX="scroll">
+                <iframe
+                  title="inline-preview"
+                  srcDoc={renderClient(
+                    sel.useGlobalShell ? wrapShell(globalHeader, sel.htmlBody || "", globalFooter) : (sel.htmlBody || ""),
+                    previewVars,
+                  )}
+                  style={{ width: 600, height: 700, zoom: 1.2, border: "none", display: "block", margin: "0 auto" }}
+                />
+              </Box>
+            </BlockStack>
+          </Card>
+        </Box>
+      ) : null}
+
       <Modal
         size="large"
         open={previewOpen}

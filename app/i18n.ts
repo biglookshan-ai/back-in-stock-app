@@ -350,6 +350,11 @@ const DICT: Record<string, string> = {
   "内置 · 无货推荐替代品": "Built-in · Out of stock — recommend alternatives",
   "内置 · 可下单提醒": "Built-in · Ready to order",
   "从内置模板开始：": "Start from a built-in template:",
+  "选择产品预览/测试": "Choose product to preview/test",
+  "更换产品": "Change product",
+  "用样例": "Use sample",
+  "默认用样例产品；选一个真实产品可预览/测试真实图片与价格。": "Uses a sample product by default; pick a real product to preview/test the actual image and price.",
+  "放大预览": "Enlarge preview",
   "内置模板开箱即用，选了可继续编辑。自定义模板在「自定义邮件模板」页管理。":
     "Built-in templates work out of the box; you can still edit after selecting. Custom templates are managed on the “Custom email templates” page.",
 

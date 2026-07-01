@@ -53,8 +53,19 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   };
 };
 
+const CURRENCY_SYMBOL: Record<string, string> = {
+  GBP: "£", USD: "$", EUR: "€", CAD: "C$", AUD: "A$", JPY: "¥", CNY: "¥", HKD: "HK$",
+};
+function fmtPrice(price?: string | null, code?: string): string | null {
+  if (!price) return null;
+  const sym = code ? CURRENCY_SYMBOL[code] : "";
+  const n = Number(price);
+  const num = Number.isFinite(n) ? n.toFixed(2).replace(/\.00$/, "") : price;
+  return sym ? `${sym}${num}` : code ? `${num} ${code}` : num;
+}
+
 export const action = async ({ request }: ActionFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
+  const { session, admin } = await authenticate.admin(request);
   const shop = session.shop;
   const fd = await request.formData();
   const intent = fd.get("intent");
@@ -90,6 +101,46 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   if (intent === "test") {
     const to = String(fd.get("testEmail") ?? "");
     const settings = await getSettings(shop);
+
+    // 若选了真实产品变体，则拉取真实 标题/图/价/链接 代替样例
+    let productVars: Record<string, string> = {
+      product_title: SAMPLE_VARS.product_title,
+      variant_title: SAMPLE_VARS.variant_title,
+      product_image: SAMPLE_VARS.product_image,
+      product_price: SAMPLE_VARS.product_price,
+      product_url: `https://${shop}`,
+    };
+    const testVariantId = String(fd.get("testVariantId") ?? "");
+    if (testVariantId) {
+      try {
+        const resp = await admin.graphql(
+          `#graphql
+          query TestVariant($id: ID!) {
+            productVariant(id: $id) {
+              title price image { url }
+              product { title handle featuredImage { url } }
+            }
+            shop { currencyCode }
+          }`,
+          { variables: { id: testVariantId } },
+        );
+        const j = await resp.json();
+        const v = j?.data?.productVariant;
+        if (v?.product) {
+          const vid = testVariantId.split("/").pop() ?? "";
+          productVars = {
+            product_title: v.product.title,
+            variant_title: v.title && v.title !== "Default Title" ? v.title : "",
+            product_image: v.image?.url ?? v.product.featuredImage?.url ?? "",
+            product_price: fmtPrice(v.price, j?.data?.shop?.currencyCode) ?? "",
+            product_url: v.product.handle ? `https://${shop}/products/${v.product.handle}?variant=${vid}` : `https://${shop}`,
+          };
+        }
+      } catch (e) {
+        console.error("test variant fetch failed", e);
+      }
+    }
+
     const fullBody = useGlobalShell
       ? composeEmail(
           settings.emailHeader || DEFAULT_HEADER,
@@ -101,6 +152,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       { subject, htmlBody: fullBody },
       {
         ...SAMPLE_VARS,
+        ...productVars,
         customer_email: to,
         shop_name: settings.fromName,
         brand_logo: settings.logoUrl,
@@ -109,7 +161,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         company_address: settings.companyAddress,
         support_email: settings.supportEmail,
         unsubscribe_url: `https://${shop}`,
-        product_url: `https://${shop}`,
       },
     );
     const res = await mailer.send({
@@ -175,6 +226,28 @@ export default function Templates() {
     ),
   );
   const [testEmail, setTestEmail] = useState("");
+  // 测试/预览用的选中产品（空=用样例）
+  const [testProd, setTestProd] = useState<{
+    variantId: string; label: string;
+    product_title: string; variant_title: string; product_image: string; product_price: string; product_url: string;
+  } | null>(null);
+
+  const pickTestProduct = async () => {
+    const picked = await shopify.resourcePicker({ type: "product", multiple: false });
+    if (!picked || picked.length === 0) return;
+    const p: any = picked[0];
+    const v = p.variants?.[0] ?? {};
+    const img = p.images?.[0]?.originalSrc || p.images?.[0]?.url || p.featuredImage?.url || "";
+    setTestProd({
+      variantId: v.id ?? "",
+      label: p.title,
+      product_title: p.title,
+      variant_title: v.title && v.title !== "Default Title" ? v.title : "",
+      product_image: img,
+      product_price: v.price ? String(v.price) : "",
+      product_url: "#", // 预览用；真实测试邮件由服务端按 handle 生成正确链接
+    });
+  };
 
   const current = templates[tab];
   const d = drafts[current.type];
@@ -197,12 +270,22 @@ export default function Templates() {
 
   const submit = (intent: "save" | "test" | "reset") =>
     fetcher.submit(
-      { intent, type: current.type, subject: d.subject, htmlBody: d.htmlBody, enabled: String(d.enabled), useGlobalShell: String(d.useGlobalShell), testEmail },
+      { intent, type: current.type, subject: d.subject, htmlBody: d.htmlBody, enabled: String(d.enabled), useGlobalShell: String(d.useGlobalShell), testEmail, testVariantId: testProd?.variantId ?? "" },
       { method: "POST" },
     );
 
-  // 预览：样例产品 + 真实品牌设置；勾选全局外壳时把正文包进页眉/页脚
-  const previewVars = { ...SAMPLE_VARS, ...brand };
+  // 预览：样例或选中的真实产品 + 真实品牌设置；勾选全局外壳时把正文包进页眉/页脚
+  const previewVars = {
+    ...SAMPLE_VARS,
+    ...brand,
+    ...(testProd ? {
+      product_title: testProd.product_title,
+      variant_title: testProd.variant_title,
+      product_image: testProd.product_image,
+      product_price: testProd.product_price,
+      product_url: testProd.product_url,
+    } : {}),
+  };
   const wrapped = d.useGlobalShell
     ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:24px 12px;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;"><tr><td align="center"><table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;border:1px solid #eaeaea;">${globalHeader}<tr><td style="padding:24px 32px">${d.htmlBody}</td></tr>${globalFooter}</table></td></tr></table>`
     : d.htmlBody;
@@ -310,6 +393,17 @@ export default function Templates() {
                   <Button onClick={() => submit("test")} disabled={!testEmail}>
                     {t("发送测试")}
                   </Button>
+                </InlineStack>
+                <InlineStack gap="200" blockAlign="center" wrap>
+                  <Button onClick={pickTestProduct}>{testProd ? t("更换产品") : t("选择产品预览/测试")}</Button>
+                  {testProd ? (
+                    <>
+                      <Text as="span" variant="bodySm">{testProd.label}</Text>
+                      <Button variant="plain" onClick={() => setTestProd(null)}>{t("用样例")}</Button>
+                    </>
+                  ) : (
+                    <Text as="span" variant="bodySm" tone="subdued">{t("默认用样例产品；选一个真实产品可预览/测试真实图片与价格。")}</Text>
+                  )}
                 </InlineStack>
               </BlockStack>
             </Card>
