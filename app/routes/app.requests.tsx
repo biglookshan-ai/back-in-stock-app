@@ -33,6 +33,7 @@ import { resolveStockLocations, getAvailability } from "../models/inventory.serv
 import { useT, translate, type Lang } from "../i18n";
 import { CTYPE_LABEL, CTYPE_TONE } from "../customer-types";
 import { productCard, CUSTOMER_CARD } from "../email-cards";
+import { EMAIL_PRESETS, getPreset } from "../email-presets";
 import { EmailEditor } from "../components/EmailEditor";
 
 // 把 URL/表单的筛选条件构造成 Prisma where（loader 与群发 action 共用）
@@ -407,8 +408,13 @@ export default function Requests() {
 
   const pickSendTpl = (id: string) => {
     setSendTplId(id);
-    const t = customTemplates.find((x) => x.id === id);
-    if (t) { setSendSubject(t.subject); setSendBody(t.htmlBody); setSendShell(t.useGlobalShell); }
+    if (id.startsWith("preset:")) {
+      const p = getPreset(id.slice("preset:".length));
+      if (p) { setSendSubject(p.subject); setSendBody(p.htmlBody); setSendShell(p.useGlobalShell); }
+      return;
+    }
+    const tpl = customTemplates.find((x) => x.id === id);
+    if (tpl) { setSendSubject(tpl.subject); setSendBody(tpl.htmlBody); setSendShell(tpl.useGlobalShell); }
   };
   const doSend = () =>
     fetcher.submit(
@@ -873,11 +879,12 @@ export default function Requests() {
                 label={t("选择模板（可选）")}
                 options={[
                   { label: t("— 空白 / 自己写 —"), value: "" },
-                  ...customTemplates.map((ct) => ({ label: ct.name, value: ct.id })),
+                  { title: t("内置模板"), options: EMAIL_PRESETS.map((p) => ({ label: t(p.name), value: `preset:${p.key}` })) },
+                  ...(customTemplates.length ? [{ title: t("我的模板"), options: customTemplates.map((ct) => ({ label: ct.name, value: ct.id })) }] : []),
                 ]}
                 value={sendTplId}
                 onChange={pickSendTpl}
-                helpText={t("模板在「自定义邮件模板」页管理。选了可继续编辑。")}
+                helpText={t("内置模板开箱即用，选了可继续编辑。自定义模板在「自定义邮件模板」页管理。")}
               />
               <TextField label={t("主题")} value={sendSubject} onChange={setSendSubject} autoComplete="off" />
               <EmailEditor value={sendBody} onChange={setSendBody} onPickProducts={pickProductCards} customerCard={{ html: CUSTOMER_CARD, label: t("客人订阅的产品（每人各自显示）") }} />

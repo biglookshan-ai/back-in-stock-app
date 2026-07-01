@@ -344,6 +344,15 @@ const DICT: Record<string, string> = {
   "有 {n} 位客人尚未识别，去订阅者或请求列表点「识别新老客」即可补齐。":
     "{n} customers not yet classified — click “Detect new/returning” on the Subscribers or Requests page to fill them in.",
 
+  // ── 内置邮件模板 ────────────────────────────────────────────────
+  "内置模板": "Built-in templates",
+  "我的模板": "My templates",
+  "内置 · 无货推荐替代品": "Built-in · Out of stock — recommend alternatives",
+  "内置 · 可下单提醒": "Built-in · Ready to order",
+  "从内置模板开始：": "Start from a built-in template:",
+  "内置模板开箱即用，选了可继续编辑。自定义模板在「自定义邮件模板」页管理。":
+    "Built-in templates work out of the box; you can still edit after selecting. Custom templates are managed on the “Custom email templates” page.",
+
   // ── 导入 Shopify 客户库 ─────────────────────────────────────────
   "导入新客到 Shopify": "Import new customers to Shopify",
   "导入新客到 Shopify ({n})": "Import new customers to Shopify ({n})",

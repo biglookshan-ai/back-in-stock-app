@@ -1,5 +1,8 @@
 // 邮件模板：默认内容 + 变量/条件渲染 + 取/存。
 import prisma from "./db.server";
+import {
+  heroBand, greeting, para, productCardVertical, featureRows, helpCta, signoff,
+} from "./email-blocks";
 
 export const TEMPLATE_TYPES = ["CONFIRMATION", "BACK_IN_STOCK"] as const;
 export type TemplateType = (typeof TEMPLATE_TYPES)[number];
@@ -77,12 +80,6 @@ const FOOTER = `
     </div>
   </td></tr>`;
 
-function button(label: string) {
-  return `<div style="margin:16px 0 4px;">
-    <a href="{{product_url}}" style="display:inline-block;background:{{brand_color}};color:#ffffff;padding:13px 28px;border-radius:8px;text-decoration:none;font-size:15px;font-weight:600;">${label}</a>
-  </div>`;
-}
-
 // ── 全局页眉/页脚的内置默认（设置里为空时用这个）──────────────────
 export const DEFAULT_HEADER = HEADER;
 export const DEFAULT_FOOTER = FOOTER;
@@ -107,19 +104,50 @@ export function composeEmail(header: string, body: string, footer: string) {
 const DEFAULTS: Record<TemplateType, { subject: string; htmlBody: string }> = {
   CONFIRMATION: {
     subject: "You're on the list — {{product_title}}",
-    htmlBody: `
-  <div style="font-size:22px;font-weight:700;color:#1a1a1a;">Thanks{{#if customer_name}}, {{customer_name}}{{/if}}!</div>
-  <div style="font-size:15px;color:#555;line-height:1.6;margin-top:8px;">We'll email you the moment this item is back in stock.</div>
-  ${PRODUCT_CARD}
-  <div style="font-size:13px;color:#999;margin-top:8px;">A confirmation that <strong>{{customer_email}}</strong> is subscribed.</div>`,
+    htmlBody: [
+      heroBand({
+        pill: "Subscription Confirmed",
+        intro: "We've saved your request.",
+        title: "You're on the List",
+        tagline: "We'll let you know the moment it's back.",
+      }),
+      greeting(),
+      para("Thanks for your interest — we've added <strong>{{product_title}}</strong> to your back-in-stock alerts. We'll email <strong>{{customer_email}}</strong> as soon as it's available to order from {{shop_name}}."),
+      productCardVertical({ label: "Your requested item", ctaLabel: "View product", ctaUrl: "{{product_url}}" }),
+      featureRows([
+        { title: "We'll notify you", desc: "You'll be among the first to hear when it's back in stock." },
+        { title: "No spam", desc: "We'll only email you about this item — nothing else." },
+        { title: "Official UK supplier", desc: "Genuine products, warranty support and expert advice." },
+      ]),
+      signoff(),
+    ].join("\n"),
   },
   BACK_IN_STOCK: {
     subject: "Back in stock: {{product_title}}",
-    htmlBody: `
-  <div style="font-size:22px;font-weight:700;color:#1a1a1a;">It's back in stock 🎉</div>
-  <div style="font-size:15px;color:#555;line-height:1.6;margin-top:8px;">The item you wanted is available again. Stock can be limited — grab it before it's gone.</div>
-  ${PRODUCT_CARD}
-  ${button("Shop now")}`,
+    htmlBody: [
+      heroBand({
+        pill: "Back in Stock Notification",
+        intro: "The gear you asked about is available again.",
+        title: "Your Requested Item Is Back in Stock",
+        tagline: "Limited availability — order soon to avoid missing out.",
+      }),
+      greeting(),
+      para("Good news — the item you asked to be notified about is now back in stock and available to order from {{shop_name}}."),
+      para("As stock may be limited, we recommend placing your order as soon as possible if you're still interested."),
+      productCardVertical({ label: "Your product", ctaLabel: "Shop now", ctaUrl: "{{product_url}}" }),
+      featureRows([
+        { title: "Back in stock", desc: "Available to order now." },
+        { title: "Fast dispatch", desc: "Orders are processed as quickly as possible." },
+        { title: "Official UK supplier", desc: "Genuine products, warranty support and expert advice." },
+      ]),
+      helpCta({
+        title: "Need help before ordering?",
+        text: "Not sure if this is the right item for your setup? Our team can help with compatibility, alternatives, lead times, and product advice.",
+        btnLabel: "Speak to the Team",
+        btnUrl: "mailto:{{support_email}}",
+      }),
+      signoff(),
+    ].join("\n"),
   },
 };
 

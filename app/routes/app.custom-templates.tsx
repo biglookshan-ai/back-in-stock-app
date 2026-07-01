@@ -13,6 +13,7 @@ import { getSettings } from "../models/subscription.server";
 import { DEFAULT_HEADER, DEFAULT_FOOTER } from "../email-templates.server";
 import { useT, translate, type Lang } from "../i18n";
 import { productCard, CUSTOMER_CARD } from "../email-cards";
+import { EMAIL_PRESETS } from "../email-presets";
 import { EmailEditor } from "../components/EmailEditor";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -115,6 +116,11 @@ export default function CustomTemplates() {
   }, [fetcher.state, fetcher.data]);
 
   const newTpl = () => setSel({ id: "", name: "", subject: "", htmlBody: DEFAULT_BODY, useGlobalShell: true });
+  // 从内置模板新建（复制内容，编辑后另存为自己的模板）
+  const newFromPreset = (key: string) => {
+    const p = EMAIL_PRESETS.find((x) => x.key === key);
+    if (p) setSel({ id: "", name: t(p.name), subject: p.subject, htmlBody: p.htmlBody, useGlobalShell: p.useGlobalShell });
+  };
   const save = () =>
     sel && fetcher.submit({ intent: "save", id: sel.id, name: sel.name, subject: sel.subject, htmlBody: sel.htmlBody, useGlobalShell: String(sel.useGlobalShell) }, { method: "POST" });
   const del = () => sel?.id && fetcher.submit({ intent: "delete", id: sel.id }, { method: "POST" });
@@ -136,6 +142,14 @@ export default function CustomTemplates() {
                 <Text as="h3" variant="headingMd">{t("模板")}</Text>
                 <Button onClick={newTpl} variant="primary">{t("新建")}</Button>
               </InlineStack>
+              <BlockStack gap="150">
+                <Text as="span" variant="bodySm" tone="subdued">{t("从内置模板开始：")}</Text>
+                <InlineStack gap="200" wrap>
+                  {EMAIL_PRESETS.map((p) => (
+                    <Button key={p.key} size="slim" onClick={() => newFromPreset(p.key)}>{t(p.name)}</Button>
+                  ))}
+                </InlineStack>
+              </BlockStack>
               {templates.length === 0 ? (
                 <Text as="p" tone="subdued">{t("还没有模板,点「新建」创建一个。")}</Text>
               ) : (
