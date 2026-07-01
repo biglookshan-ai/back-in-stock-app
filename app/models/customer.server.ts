@@ -39,6 +39,21 @@ export async function classifyCustomer(
   }
 }
 
+// 后台分类单个邮箱并写回其订阅行（订阅时 fire-and-forget 调用，绝不阻塞写入）。
+export async function classifyEmailInBackground(
+  admin: AdminClient,
+  shop: string,
+  email: string,
+): Promise<void> {
+  const clean = email.trim().toLowerCase();
+  const type = await classifyCustomer(admin, clean);
+  if (!type) return;
+  await prisma.subscription.updateMany({
+    where: { shop, email: clean },
+    data: { customerType: type },
+  });
+}
+
 // 批量回填：把店铺里所有（或指定）邮箱分类后，写回该邮箱的全部订阅行。
 // 顺序执行避免触发 Shopify API 限流；返回 { classified, byType }。
 export async function classifyAndStore(

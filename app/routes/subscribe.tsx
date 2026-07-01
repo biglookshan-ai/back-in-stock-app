@@ -4,8 +4,8 @@ import type { ActionFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
 import { createSubscription } from "../models/subscription.server";
-import { classifyCustomer } from "../models/customer.server";
-import { allow, clientIp } from "../rate-limit.server";
+import { classifyEmailInBackground } from "../models/customer.server";
+import { allow } from "../rate-limit.server";
 import { isDisposableEmail } from "../disposable-domains.server";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -55,15 +55,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     return json({ error: "invalid_email" }, { status: 422 });
   }
 
-  // ── 限流（两层独立防护，挡批量灌库 + 邮件轰炸） ──
-  //   IP 是挡洪水的主力：同一来源 30 次/10 分钟
-  //   邮箱只是防呆上限，放宽：同一邮箱 20 次/小时（真实客人订多个缺货品也够用）
-  const ip = clientIp(request);
+  // ── 限流：只按「邮箱」限（可靠）。
+  //   不按 IP 限：请求经 App Proxy 转发，x-forwarded-for 往往是 Shopify 代理 IP，
+  //   全店会共用同一个 IP → 误把所有客人挡在门外。邮箱维度足够防单邮箱刷屏。
   const emailKey = email.trim().toLowerCase();
-  if (
-    !allow(`bis:ip:${shop}:${ip}`, 30, 10 * 60 * 1000) ||
-    !allow(`bis:email:${shop}:${emailKey}`, 20, 60 * 60 * 1000)
-  ) {
+  if (!allow(`bis:email:${shop}:${emailKey}`, 20, 60 * 60 * 1000)) {
     return json({ error: "rate_limited" }, { status: 429 });
   }
 
@@ -101,26 +97,35 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     return json({ error: "variant_not_found" }, { status: 404 });
   }
 
-  // 新老客分类（查 Shopify 客户档案 + 下单数）；失败不阻塞订阅
-  const customerType = await classifyCustomer(admin, email);
+  // ── 先写入订阅（核心数据，务必保证进库；分类等放后台，绝不阻塞）──
+  let alreadySubscribed = false;
+  try {
+    const res = await createSubscription({
+      shop,
+      email: emailKey,
+      productId: variant.product.id,
+      variantId: variant.id,
+      barcode: variant.barcode ?? null, // ★ 权威 barcode
+      customerName: name?.trim() || null,
+      marketingConsent: marketing === "true" || marketing === "1" || marketing === true,
+      productTitle: variant.product.title,
+      variantTitle: variant.title,
+      productHandle: variant.product.handle,
+      productImage: variant.image?.url ?? variant.product.featuredImage?.url ?? null,
+      price: formatPrice(variant.price, currencyCode),
+      source: source ?? "product_page",
+      locale: locale ?? null,
+    });
+    alreadySubscribed = res.alreadySubscribed;
+  } catch (e) {
+    console.error("[subscribe] createSubscription failed", e);
+    return json({ error: "server_error" }, { status: 500 });
+  }
 
-  const { alreadySubscribed } = await createSubscription({
-    shop,
-    email: email.trim().toLowerCase(),
-    customerType,
-    productId: variant.product.id,
-    variantId: variant.id,
-    barcode: variant.barcode ?? null, // ★ 权威 barcode
-    customerName: name?.trim() || null,
-    marketingConsent: marketing === "true" || marketing === "1" || marketing === true,
-    productTitle: variant.product.title,
-    variantTitle: variant.title,
-    productHandle: variant.product.handle,
-    productImage: variant.image?.url ?? variant.product.featuredImage?.url ?? null,
-    price: formatPrice(variant.price, currencyCode),
-    source: source ?? "product_page",
-    locale: locale ?? null,
-  });
+  // 新老客分类：后台执行（查 Shopify 客户档案 + 下单数），失败不影响订阅
+  void classifyEmailInBackground(admin, shop, emailKey).catch((e) =>
+    console.error("[subscribe] classify failed", e),
+  );
 
   return json({ ok: true, already: alreadySubscribed });
 };
