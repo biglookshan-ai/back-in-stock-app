@@ -16,12 +16,12 @@ const LIGHT_BAND = "#f6f5f1";
 // 联系我们页（所有「Speak to the Team」按钮统一指向）
 export const CONTACT_URL = "https://www.cinegearpro.co.uk/pages/contact-us";
 
-// 金色按钮（实心）/ 描边按钮：统一尺寸
+// 金色按钮（实心）/ 描边按钮：统一尺寸（偏小）
 function solidBtn(label: string, url: string) {
-  return `<a href="${url}" style="display:inline-block;background:${GOLD};color:${INK};font-weight:700;font-size:12px;letter-spacing:.5px;text-transform:uppercase;padding:10px 20px;border-radius:6px;text-decoration:none;">${label}</a>`;
+  return `<a href="${url}" style="display:inline-block;background:${GOLD};color:${INK};font-weight:700;font-size:11px;letter-spacing:.5px;text-transform:uppercase;padding:9px 18px;border-radius:6px;text-decoration:none;">${label}</a>`;
 }
 function outlineBtn(label: string, url: string) {
-  return `<a href="${url}" style="display:inline-block;border:1.5px solid ${GOLD};color:${INK};font-weight:700;font-size:12px;padding:10px 22px;border-radius:6px;text-decoration:none;">${label}</a>`;
+  return `<a href="${url}" style="display:inline-block;border:1.5px solid ${GOLD};color:${INK};font-weight:700;font-size:11px;padding:9px 18px;border-radius:6px;text-decoration:none;">${label}</a>`;
 }
 
 // 模块间可点击空行（编辑器里方便落光标插入内容；邮件里是一小段间距）
@@ -29,16 +29,14 @@ export function spacer() {
   return `<p style="margin:0;line-height:18px;">&nbsp;</p>`;
 }
 
-// 顶部 hero：全宽深色banner（负边距抵消正文 td 的 24px/32px 内边距，贴合页眉）
+// 顶部 hero：贴合内容的圆角深色卡片（预览与 Gmail 一致；不用负边距全宽以免 Gmail 去掉后错位）
 export function heroBand(o: { pill: string; intro: string; title: string; tagline?: string }) {
   return `
-  <div style="margin:-24px -32px 20px;">
-    <div style="background:${HERO_BG};padding:32px 28px;text-align:center;">
-      <span style="display:inline-block;background:${GOLD};color:${INK};font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:7px 16px;border-radius:20px;">${o.pill}</span>
-      <div style="color:#9aa0aa;font-size:12px;margin-top:14px;">${o.intro}</div>
-      <div style="color:#ffffff;font-size:21px;font-weight:700;line-height:1.3;margin-top:8px;">${o.title}</div>
-      ${o.tagline ? `<div style="color:${GOLD_SOFT};font-size:12px;font-weight:700;margin-top:10px;">${o.tagline}</div>` : ""}
-    </div>
+  <div style="background:${HERO_BG};border-radius:12px;padding:32px 26px;text-align:center;margin:0 0 26px;">
+    <span style="display:inline-block;background:${GOLD};color:${INK};font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:7px 16px;border-radius:20px;">${o.pill}</span>
+    <div style="color:#9aa0aa;font-size:12px;margin-top:14px;">${o.intro}</div>
+    <div style="color:#ffffff;font-size:21px;font-weight:700;line-height:1.3;margin-top:8px;">${o.title}</div>
+    ${o.tagline ? `<div style="color:${GOLD_SOFT};font-size:12px;font-weight:700;margin-top:10px;">${o.tagline}</div>` : ""}
   </div>`;
 }
 
@@ -73,7 +71,7 @@ export function productCard(o: {
   return `
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #eaeaea;border-radius:12px;overflow:hidden;">
     <tr>
-      {{#if product_image}}<td width="140" style="padding:0;vertical-align:top;"><img src="{{product_image}}" alt="{{product_title}}" width="140" style="width:140px;height:140px;object-fit:cover;display:block;border:0;background:${HERO_BG};"></td>{{/if}}
+      {{#if product_image}}<td width="180" style="padding:0;vertical-align:top;"><img src="{{product_image}}" alt="{{product_title}}" width="180" style="width:180px;height:180px;object-fit:cover;display:block;border:0;background:${HERO_BG};"></td>{{/if}}
       <td style="padding:16px 18px;vertical-align:top;">
         <div style="font-size:15px;font-weight:700;color:${INK};line-height:1.35;">{{product_title}}</div>
         {{#if variant_title}}<div style="font-size:12px;color:#888;margin-top:4px;">{{variant_title}}</div>{{/if}}
