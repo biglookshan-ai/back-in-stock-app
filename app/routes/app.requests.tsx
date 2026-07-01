@@ -12,6 +12,7 @@ import {
   Select,
   Box,
   Button,
+  ButtonGroup,
   BlockStack,
   InlineStack,
   Text,
@@ -385,6 +386,7 @@ export default function Requests() {
   const [sendBody, setSendBody] = useState("");
   const [sendShell, setSendShell] = useState(true);
   const [previewMode, setPreviewMode] = useState(false);
+  const [pvMobile, setPvMobile] = useState(false);
 
   useEffect(() => {
     if (fetcher.state !== "idle" || !fetcher.data) return;
@@ -858,9 +860,15 @@ export default function Requests() {
                   {t("预览以勾选的第一位客人为例：")}<b>{firstSel.customerName || firstSel.email}</b>{t(" 订阅了「")}{firstSel.productTitle}{firstSel.variantTitle && firstSel.variantTitle !== "Default Title" ? ` / ${firstSel.variantTitle}` : ""}{t("」。每位收件人都会替换成自己订阅的产品。")}
                 </Text>
               )}
+              <InlineStack align="end">
+                <ButtonGroup variant="segmented">
+                  <Button size="slim" pressed={!pvMobile} onClick={() => setPvMobile(false)}>{t("桌面")}</Button>
+                  <Button size="slim" pressed={pvMobile} onClick={() => setPvMobile(true)}>{t("手机")}</Button>
+                </ButtonGroup>
+              </InlineStack>
               <Box borderRadius="200" borderWidth="025" borderColor="border" overflowX="scroll">
                 <iframe title="send-preview" srcDoc={sendPreview}
-                  style={{ width: 600, height: 560, border: "none", display: "block", margin: "0 auto" }} />
+                  style={{ width: pvMobile ? 390 : 600, height: 620, border: "none", display: "block", margin: "0 auto" }} />
               </Box>
             </BlockStack>
           ) : (

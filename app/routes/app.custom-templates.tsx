@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { useLoaderData, useFetcher, useNavigate } from "@remix-run/react";
 import {
-  Page, Card, TextField, Checkbox, Button, BlockStack, InlineStack, Text, Box,
+  Page, Card, TextField, Checkbox, Button, ButtonGroup, BlockStack, InlineStack, Text, Box,
   InlineGrid, Banner, ResourceList, ResourceItem, Modal,
 } from "@shopify/polaris";
 import { TitleBar, useAppBridge } from "@shopify/app-bridge-react";
@@ -160,6 +160,7 @@ export default function CustomTemplates() {
 
   const [sel, setSel] = useState<Tpl | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [pvMobile, setPvMobile] = useState(false);
   const isNew = sel !== null && !sel.id;
 
   // 发送测试邮件 + 选产品
@@ -323,7 +324,13 @@ export default function CustomTemplates() {
             <BlockStack gap="300">
               <InlineStack align="space-between" blockAlign="center">
                 <Text as="h3" variant="headingMd">{t("实时预览")}</Text>
-                <Button variant="plain" onClick={() => setPreviewOpen(true)}>{t("放大预览")}</Button>
+                <InlineStack gap="200" blockAlign="center">
+                  <ButtonGroup variant="segmented">
+                    <Button size="slim" pressed={!pvMobile} onClick={() => setPvMobile(false)}>{t("桌面")}</Button>
+                    <Button size="slim" pressed={pvMobile} onClick={() => setPvMobile(true)}>{t("手机")}</Button>
+                  </ButtonGroup>
+                  <Button variant="plain" onClick={() => setPreviewOpen(true)}>{t("放大预览")}</Button>
+                </InlineStack>
               </InlineStack>
               <Box borderRadius="200" borderWidth="025" borderColor="border" overflowX="scroll">
                 <iframe
@@ -332,7 +339,7 @@ export default function CustomTemplates() {
                     sel.useGlobalShell ? wrapShell(globalHeader, sel.htmlBody || "", globalFooter) : (sel.htmlBody || ""),
                     previewVars,
                   )}
-                  style={{ width: 600, height: 700, zoom: 1.2, border: "none", display: "block", margin: "0 auto" }}
+                  style={{ width: pvMobile ? 390 : 600, height: 720, zoom: pvMobile ? 1 : 1.2, border: "none", display: "block", margin: "0 auto" }}
                 />
               </Box>
             </BlockStack>

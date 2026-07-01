@@ -8,6 +8,7 @@ import {
   TextField,
   Checkbox,
   Button,
+  ButtonGroup,
   BlockStack,
   InlineStack,
   Text,
@@ -227,6 +228,7 @@ export default function Templates() {
     ),
   );
   const [testEmail, setTestEmail] = useState("");
+  const [pvMobile, setPvMobile] = useState(false); // 预览：桌面/手机
   // 测试/预览用的选中产品（空=用样例）
   const [testProd, setTestProd] = useState<{
     variantId: string; label: string;
@@ -392,7 +394,13 @@ export default function Templates() {
               {/* 实时预览 */}
               <Card>
                 <BlockStack gap="300">
-                  <Text as="h3" variant="headingMd">{t("实时预览")}</Text>
+                  <InlineStack align="space-between" blockAlign="center">
+                    <Text as="h3" variant="headingMd">{t("实时预览")}</Text>
+                    <ButtonGroup variant="segmented">
+                      <Button size="slim" pressed={!pvMobile} onClick={() => setPvMobile(false)}>{t("桌面")}</Button>
+                      <Button size="slim" pressed={pvMobile} onClick={() => setPvMobile(true)}>{t("手机")}</Button>
+                    </ButtonGroup>
+                  </InlineStack>
                   <Text as="p" tone="subdued" variant="bodySm">
                     {t("主题：")}{previewSubject}
                   </Text>
@@ -400,7 +408,7 @@ export default function Templates() {
                     <iframe
                       title="email-preview"
                       srcDoc={previewHtml}
-                      style={{ width: 600, height: 720, zoom: 1.3, border: "none", display: "block", margin: "0 auto" }}
+                      style={{ width: pvMobile ? 390 : 600, height: 760, zoom: pvMobile ? 1 : 1.3, border: "none", display: "block", margin: "0 auto" }}
                     />
                   </Box>
                 </BlockStack>

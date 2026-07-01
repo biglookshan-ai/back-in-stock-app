@@ -355,6 +355,8 @@ const DICT: Record<string, string> = {
   "用样例": "Use sample",
   "默认用样例产品；选一个真实产品可预览/测试真实图片与价格。": "Uses a sample product by default; pick a real product to preview/test the actual image and price.",
   "放大预览": "Enlarge preview",
+  "桌面": "Desktop",
+  "手机": "Mobile",
   "内置模板开箱即用，选了可继续编辑。自定义模板在「自定义邮件模板」页管理。":
     "Built-in templates work out of the box; you can still edit after selecting. Custom templates are managed on the “Custom email templates” page.",
 

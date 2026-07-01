@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { useLoaderData, useFetcher, useNavigate } from "@remix-run/react";
 import {
-  Page, Card, TextField, Button, BlockStack, InlineStack, Text, Box, Banner, InlineGrid,
+  Page, Card, TextField, Button, ButtonGroup, BlockStack, InlineStack, Text, Box, Banner, InlineGrid,
 } from "@shopify/polaris";
 import { TitleBar, useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
@@ -80,6 +80,7 @@ export default function EmailShell() {
 
   const [h, setH] = useState(header);
   const [f, setF] = useState(footer);
+  const [pvMobile, setPvMobile] = useState(false);
 
   useEffect(() => {
     if (fetcher.state === "idle" && fetcher.data?.message) shopify.toast.show(fetcher.data.message);
@@ -138,10 +139,16 @@ export default function EmailShell() {
 
           <Card>
             <BlockStack gap="300">
-              <Text as="h3" variant="headingMd">{t("实时预览")}</Text>
+              <InlineStack align="space-between" blockAlign="center">
+                <Text as="h3" variant="headingMd">{t("实时预览")}</Text>
+                <ButtonGroup variant="segmented">
+                  <Button size="slim" pressed={!pvMobile} onClick={() => setPvMobile(false)}>{t("桌面")}</Button>
+                  <Button size="slim" pressed={pvMobile} onClick={() => setPvMobile(true)}>{t("手机")}</Button>
+                </ButtonGroup>
+              </InlineStack>
               <Box borderRadius="200" borderWidth="025" borderColor="border" overflowX="scroll">
                 <iframe title="shell-preview" srcDoc={previewHtml}
-                  style={{ width: 600, height: 720, zoom: 1.3, border: "none", display: "block", margin: "0 auto" }} />
+                  style={{ width: pvMobile ? 390 : 600, height: 760, zoom: pvMobile ? 1 : 1.3, border: "none", display: "block", margin: "0 auto" }} />
               </Box>
             </BlockStack>
           </Card>
