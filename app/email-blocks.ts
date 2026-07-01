@@ -69,7 +69,7 @@ export function productCard(o: {
 }) {
   const priceBlock = o.statusText
     ? `<div style="display:inline-block;margin-top:10px;background:#efeee9;color:#555;font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;padding:5px 12px;border-radius:16px;">${o.statusText}</div>`
-    : `{{#if product_price}}<div style="font-size:16px;font-weight:700;color:${INK};margin-top:10px;">{{product_price}}</div>${o.showPriceNote ? `<div style="font-size:11px;color:#999;margin-top:3px;line-height:1.5;">The price shown is as at the time this email was sent and may change — please refer to our website for the final, up-to-date price.</div>` : ""}{{/if}}`;
+    : `{{#if product_price}}<div style="font-size:16px;font-weight:700;color:${INK};margin-top:10px;">{{product_price}}</div>${o.showPriceNote ? `<div style="font-size:11px;color:#999;margin-top:3px;line-height:1.5;">Price is as at the time of sending and may change — our website shows the final price.</div>` : ""}{{/if}}`;
   return `
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #eaeaea;border-radius:12px;overflow:hidden;">
     <tr>
