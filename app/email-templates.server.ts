@@ -1,7 +1,7 @@
 // 邮件模板：默认内容 + 变量/条件渲染 + 取/存。
 import prisma from "./db.server";
 import {
-  heroBand, greeting, para, productCardVertical, featureRows, helpCta, signoff,
+  heroBand, greeting, para, sectionLabel, productCard, featureRows, helpCta, signoff, spacer,
 } from "./email-blocks";
 
 export const TEMPLATE_TYPES = ["CONFIRMATION", "BACK_IN_STOCK"] as const;
@@ -113,12 +113,16 @@ const DEFAULTS: Record<TemplateType, { subject: string; htmlBody: string }> = {
       }),
       greeting(),
       para("Thanks for your interest — we've added <strong>{{product_title}}</strong> to your back-in-stock alerts. We'll email <strong>{{customer_email}}</strong> as soon as it's available to order from {{shop_name}}."),
-      productCardVertical({ label: "Your requested item", ctaLabel: "View product", ctaUrl: "{{product_url}}" }),
+      spacer(),
+      sectionLabel("Your requested item"),
+      productCard({ ctaLabel: "View product", ctaUrl: "{{product_url}}", showPriceNote: true }),
+      spacer(),
       featureRows([
         { title: "We'll notify you", desc: "You'll be among the first to hear when it's back in stock." },
         { title: "No spam", desc: "We'll only email you about this item — nothing else." },
         { title: "Official UK supplier", desc: "Genuine products, warranty support and expert advice." },
       ]),
+      spacer(),
       signoff(),
     ].join("\n"),
   },
@@ -134,18 +138,22 @@ const DEFAULTS: Record<TemplateType, { subject: string; htmlBody: string }> = {
       greeting(),
       para("Good news — the item you asked to be notified about is now back in stock and available to order from {{shop_name}}."),
       para("As stock may be limited, we recommend placing your order as soon as possible if you're still interested."),
-      productCardVertical({ label: "Your product", ctaLabel: "Shop now", ctaUrl: "{{product_url}}" }),
+      spacer(),
+      sectionLabel("Your product"),
+      productCard({ ctaLabel: "Shop now", ctaUrl: "{{product_url}}", showPriceNote: true }),
+      spacer(),
       featureRows([
         { title: "Back in stock", desc: "Available to order now." },
         { title: "Fast dispatch", desc: "Orders are processed as quickly as possible." },
         { title: "Official UK supplier", desc: "Genuine products, warranty support and expert advice." },
       ]),
+      spacer(),
       helpCta({
         title: "Need help before ordering?",
         text: "Not sure if this is the right item for your setup? Our team can help with compatibility, alternatives, lead times, and product advice.",
         btnLabel: "Speak to the Team",
-        btnUrl: "mailto:{{support_email}}",
       }),
+      spacer(),
       signoff(),
     ].join("\n"),
   },
