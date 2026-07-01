@@ -30,6 +30,7 @@ import {
 } from "../email-templates.server";
 import { mailer } from "../mailer.server";
 import { getSettings } from "../models/subscription.server";
+import { wrapEmailBody } from "../email-blocks";
 import { useT, translate, type Lang } from "../i18n";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -287,7 +288,7 @@ export default function Templates() {
     } : {}),
   };
   const wrapped = d.useGlobalShell
-    ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:24px 12px;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;"><tr><td align="center"><table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;border:1px solid #eaeaea;">${globalHeader}<tr><td style="padding:24px 32px">${d.htmlBody}</td></tr>${globalFooter}</table></td></tr></table>`
+    ? wrapEmailBody(globalHeader, d.htmlBody, globalFooter)
     : d.htmlBody;
   const previewHtml = renderClient(wrapped, previewVars);
   const previewSubject = renderClient(d.subject, previewVars);

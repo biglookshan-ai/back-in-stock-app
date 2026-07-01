@@ -11,6 +11,7 @@ import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { getSettings } from "../models/subscription.server";
 import { DEFAULT_HEADER, DEFAULT_FOOTER } from "../email-templates.server";
+import { wrapEmailBody } from "../email-blocks";
 import { useT, translate, type Lang } from "../i18n";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -53,15 +54,7 @@ function renderClient(tpl: string, vars: Record<string, string>) {
 }
 
 // 与 email-templates.server.ts 的 composeEmail 保持一致的外壳
-function wrapShell(header: string, body: string, footer: string) {
-  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:24px 12px;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-  <tr><td align="center">
-    <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;border:1px solid #eaeaea;">
-      ${header}<tr><td style="padding:24px 32px">${body}</td></tr>${footer}
-    </table>
-  </td></tr>
-</table>`;
-}
+const wrapShell = wrapEmailBody;
 
 // 预览中段（代表模板正文的位置）
 const SAMPLE_BODY = `

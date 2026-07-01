@@ -29,15 +29,27 @@ export function spacer() {
   return `<p style="margin:0;line-height:18px;">&nbsp;</p>`;
 }
 
-// 顶部 hero：贴合内容的圆角深色卡片（预览与 Gmail 一致；不用负边距全宽以免 Gmail 去掉后错位）
+// 顶部 hero：真·全宽深色 banner。标记 data-bis-hero，由 wrapEmailBody 抽成外壳里
+// 独立的一整行（在带内边距的正文行之外），Gmail/Apple Mail 均为边到边全宽。
 export function heroBand(o: { pill: string; intro: string; title: string; tagline?: string }) {
-  return `
-  <div style="background:${HERO_BG};border-radius:12px;padding:32px 26px;text-align:center;margin:0 0 26px;">
-    <span style="display:inline-block;background:${GOLD};color:${INK};font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:7px 16px;border-radius:20px;">${o.pill}</span>
-    <div style="color:#9aa0aa;font-size:12px;margin-top:14px;">${o.intro}</div>
-    <div style="color:#ffffff;font-size:21px;font-weight:700;line-height:1.3;margin-top:8px;">${o.title}</div>
-    ${o.tagline ? `<div style="color:${GOLD_SOFT};font-size:12px;font-weight:700;margin-top:10px;">${o.tagline}</div>` : ""}
-  </div>`;
+  return `<table role="presentation" data-bis-hero width="100%" cellpadding="0" cellspacing="0" bgcolor="${HERO_BG}" style="background:${HERO_BG};">
+    <tr><td style="padding:36px 30px;text-align:center;">
+      <span style="display:inline-block;background:${GOLD};color:${INK};font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:7px 16px;border-radius:20px;">${o.pill}</span>
+      <div style="color:#9aa0aa;font-size:12px;margin-top:14px;">${o.intro}</div>
+      <div style="color:#ffffff;font-size:21px;font-weight:700;line-height:1.3;margin-top:8px;">${o.title}</div>
+      ${o.tagline ? `<div style="color:${GOLD_SOFT};font-size:12px;font-weight:700;margin-top:10px;">${o.tagline}</div>` : ""}
+    </td></tr>
+  </table>`;
+}
+
+// 组装邮件外壳：页眉 + [全宽 hero 独立行] + 带内边距的正文行 + 页脚。
+// 若正文开头是 data-bis-hero 表格，则抽出来放到正文 td 之外，实现真·全宽（客户端安全，预览/发送共用）。
+export function wrapEmailBody(header: string, body: string, footer: string) {
+  let hero = "";
+  let rest = body;
+  const m = body.match(/^\s*(<table[^>]*\bdata-bis-hero\b[\s\S]*?<\/table>)/);
+  if (m) { hero = m[1]; rest = body.slice(m.index! + m[0].length); }
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:24px 12px;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;"><tr><td align="center"><table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;border:1px solid #eaeaea;overflow:hidden;">${header}${hero ? `<tr><td style="padding:0;">${hero}</td></tr>` : ""}<tr><td style="padding:24px 32px;">${rest}</td></tr>${footer}</table></td></tr></table>`;
 }
 
 // 问候语（含姓名条件块）

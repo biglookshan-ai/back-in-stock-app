@@ -34,6 +34,7 @@ import { useT, translate, type Lang } from "../i18n";
 import { CTYPE_LABEL, CTYPE_TONE } from "../customer-types";
 import { productCard, CUSTOMER_CARD } from "../email-cards";
 import { EMAIL_PRESETS, getPreset } from "../email-presets";
+import { wrapEmailBody } from "../email-blocks";
 import { EmailEditor } from "../components/EmailEditor";
 
 // 把 URL/表单的筛选条件构造成 Prisma where（loader 与群发 action 共用）
@@ -434,9 +435,7 @@ export default function Requests() {
     });
   };
 
-  const sendWrapped = sendShell
-    ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:24px 12px;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;"><tr><td align="center"><table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;border:1px solid #eaeaea;">${globalHeader}<tr><td style="padding:24px 32px">${sendBody}</td></tr>${globalFooter}</table></td></tr></table>`
-    : sendBody;
+  const sendWrapped = sendShell ? wrapEmailBody(globalHeader, sendBody, globalFooter) : sendBody;
   // 预览用「第一个勾选客人」的真实产品；没勾选则回退到样例
   const firstSel = rows.find((r) => r.id === selectedResources[0]);
   const previewProductVars: Record<string, string> = firstSel

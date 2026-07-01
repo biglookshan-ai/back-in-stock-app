@@ -2,6 +2,7 @@
 import prisma from "./db.server";
 import {
   heroBand, greeting, para, sectionLabel, productCard, featureRows, helpCta, signoff, spacer,
+  wrapEmailBody,
 } from "./email-blocks";
 
 export const TEMPLATE_TYPES = ["CONFIRMATION", "BACK_IN_STOCK"] as const;
@@ -89,15 +90,7 @@ export const CUSTOMER_PRODUCT_CARD = PRODUCT_CARD; // 「插入客人产品卡�
 // 关键：正文放进独立 <td> 单元格，正文可为任意 HTML（div/table），
 // 不会因为非 <tr> 内容被浏览器「踢」出表格（foster-parenting）而错位。
 export function composeEmail(header: string, body: string, footer: string) {
-  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:24px 12px;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-  <tr><td align="center">
-    <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;border:1px solid #eaeaea;">
-      ${header}
-      <tr><td style="padding:24px 32px;">${body}</td></tr>
-      ${footer}
-    </table>
-  </td></tr>
-</table>`;
+  return wrapEmailBody(header, body, footer);
 }
 
 // 默认模板「正文」——只含中间内容（页眉/页脚由全局提供，useGlobalShell=true）

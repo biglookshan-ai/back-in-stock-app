@@ -14,6 +14,7 @@ import { DEFAULT_HEADER, DEFAULT_FOOTER } from "../email-templates.server";
 import { useT, translate, type Lang } from "../i18n";
 import { productCard, CUSTOMER_CARD } from "../email-cards";
 import { EMAIL_PRESETS } from "../email-presets";
+import { wrapEmailBody } from "../email-blocks";
 import { EmailEditor } from "../components/EmailEditor";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -77,9 +78,7 @@ const DEFAULT_BODY = `<div style="font-family:Arial,sans-serif">
 </div>`;
 
 // 与服务端 composeEmail 一致的外壳（预览用）
-function wrapShell(header: string, body: string, footer: string) {
-  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:24px 12px;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;"><tr><td align="center"><table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;border:1px solid #eaeaea;">${header}<tr><td style="padding:24px 32px">${body}</td></tr>${footer}</table></td></tr></table>`;
-}
+const wrapShell = wrapEmailBody;
 
 type Tpl = { id: string; name: string; subject: string; htmlBody: string; useGlobalShell: boolean };
 
