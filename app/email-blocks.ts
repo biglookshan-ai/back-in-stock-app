@@ -52,9 +52,9 @@ export function wrapEmailBody(header: string, body: string, footer: string) {
   const outer = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:24px 12px;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;"><tr><td align="center"><table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;border:1px solid #eaeaea;overflow:hidden;">${header}${hero ? `<tr><td style="padding:0;">${hero}</td></tr>` : ""}<tr><td class="bis-body" style="padding:24px 32px;">${rest}</td></tr>${footer}</table></td></tr></table>`;
   // 响应式：窄屏（手机）时把「图左信息右 / 文字左地图右」等双栏堆叠为上下排列
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>
-    @media only screen and (max-width:600px){
+    @media only screen and (max-width:480px){
       .bis-col{display:block!important;width:100%!important;box-sizing:border-box!important;}
-      .bis-img{width:100%!important;height:auto!important;max-width:100%!important;}
+      .bis-img{display:block!important;margin-left:auto!important;margin-right:auto!important;}
       .bis-center-sm{text-align:center!important;}
       .bis-pt-sm{padding-top:16px!important;}
       .bis-body{padding:20px!important;}
