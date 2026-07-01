@@ -16,8 +16,8 @@ export function productCard(p: { title: string; image: string; price: string; ur
   return `
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #eaeaea;border-radius:12px;overflow:hidden;margin:12px 0">
   <tr>
-    ${p.image ? `<td width="140" style="padding:0;vertical-align:top"><img src="${p.image}" width="140" style="width:140px;height:140px;object-fit:cover;display:block;border:0;background:#1c1f26"></td>` : ""}
-    <td style="padding:16px 18px;vertical-align:top">
+    ${p.image ? `<td class="bis-col" width="140" style="padding:0;vertical-align:top"><img class="bis-img" src="${p.image}" width="140" style="width:140px;height:140px;object-fit:cover;display:block;border:0;background:#1c1f26"></td>` : ""}
+    <td class="bis-col bis-center-sm" style="padding:16px 18px;vertical-align:top">
       <div style="font-size:15px;font-weight:700;color:${INK};line-height:1.35">${p.title}</div>
       ${p.price ? `<div style="font-size:16px;font-weight:700;color:${INK};margin-top:8px">${p.price} ${STAR}</div>` : ""}
       <div style="margin-top:12px">${goldBtn("View product", p.url)}</div>
@@ -30,8 +30,8 @@ export function productCard(p: { title: string; image: string; price: string; ur
 export const CUSTOMER_CARD = `
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #eaeaea;border-radius:12px;overflow:hidden;margin:12px 0">
   <tr>
-    {{#if product_image}}<td width="140" style="padding:0;vertical-align:top"><img src="{{product_image}}" width="140" style="width:140px;height:140px;object-fit:cover;display:block;border:0;background:#1c1f26"></td>{{/if}}
-    <td style="padding:16px 18px;vertical-align:top">
+    {{#if product_image}}<td class="bis-col" width="140" style="padding:0;vertical-align:top"><img class="bis-img" src="{{product_image}}" width="140" style="width:140px;height:140px;object-fit:cover;display:block;border:0;background:#1c1f26"></td>{{/if}}
+    <td class="bis-col bis-center-sm" style="padding:16px 18px;vertical-align:top">
       <div style="font-size:15px;font-weight:700;color:${INK};line-height:1.35">{{product_title}}</div>
       {{#if variant_title}}<div style="font-size:12px;color:#888;margin-top:4px">{{variant_title}}</div>{{/if}}
       {{#if product_price}}<div style="font-size:16px;font-weight:700;color:${INK};margin-top:8px">{{product_price}} ${STAR}</div>{{/if}}

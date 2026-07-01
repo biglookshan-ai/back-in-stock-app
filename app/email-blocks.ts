@@ -49,7 +49,17 @@ export function wrapEmailBody(header: string, body: string, footer: string) {
   let rest = body;
   const m = body.match(/^\s*(<table[^>]*\bdata-bis-hero\b[\s\S]*?<\/table>)/);
   if (m) { hero = m[1]; rest = body.slice(m.index! + m[0].length); }
-  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:24px 12px;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;"><tr><td align="center"><table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;border:1px solid #eaeaea;overflow:hidden;">${header}${hero ? `<tr><td style="padding:0;">${hero}</td></tr>` : ""}<tr><td style="padding:24px 32px;">${rest}</td></tr>${footer}</table></td></tr></table>`;
+  const outer = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:24px 12px;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;"><tr><td align="center"><table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;border:1px solid #eaeaea;overflow:hidden;">${header}${hero ? `<tr><td style="padding:0;">${hero}</td></tr>` : ""}<tr><td class="bis-body" style="padding:24px 32px;">${rest}</td></tr>${footer}</table></td></tr></table>`;
+  // 响应式：窄屏（手机）时把「图左信息右 / 文字左地图右」等双栏堆叠为上下排列
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>
+    @media only screen and (max-width:600px){
+      .bis-col{display:block!important;width:100%!important;box-sizing:border-box!important;}
+      .bis-img{width:100%!important;height:auto!important;max-width:100%!important;}
+      .bis-center-sm{text-align:center!important;}
+      .bis-pt-sm{padding-top:16px!important;}
+      .bis-body{padding:20px!important;}
+    }
+  </style></head><body style="margin:0;padding:0;">${outer}</body></html>`;
 }
 
 // 问候语（含姓名条件块）
@@ -83,8 +93,8 @@ export function productCard(o: {
   return `
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #eaeaea;border-radius:12px;overflow:hidden;">
     <tr>
-      {{#if product_image}}<td width="180" style="padding:0;vertical-align:top;"><img src="{{product_image}}" alt="{{product_title}}" width="180" style="width:180px;height:180px;object-fit:cover;display:block;border:0;background:${HERO_BG};"></td>{{/if}}
-      <td style="padding:16px 18px;vertical-align:top;">
+      {{#if product_image}}<td class="bis-col" width="180" style="padding:0;vertical-align:top;"><img class="bis-img" src="{{product_image}}" alt="{{product_title}}" width="180" style="width:180px;height:180px;object-fit:cover;display:block;border:0;background:${HERO_BG};"></td>{{/if}}
+      <td class="bis-col bis-center-sm" style="padding:16px 18px;vertical-align:top;">
         <div style="font-size:15px;font-weight:700;color:${INK};line-height:1.35;">{{product_title}}</div>
         {{#if variant_title}}<div style="font-size:12px;color:#888;margin-top:4px;">{{variant_title}}</div>{{/if}}
         ${priceBlock}
