@@ -2,7 +2,7 @@
 import prisma from "./db.server";
 import {
   heroBand, greeting, para, sectionLabel, productCard, featureRows, helpCta, signoff, spacer,
-  wrapEmailBody,
+  priceFootnote, wrapEmailBody,
 } from "./email-blocks";
 
 export const TEMPLATE_TYPES = ["CONFIRMATION", "BACK_IN_STOCK"] as const;
@@ -116,6 +116,8 @@ const DEFAULTS: Record<TemplateType, { subject: string; htmlBody: string }> = {
         { title: "Official UK supplier", desc: "Genuine products, warranty support and expert advice." },
       ]),
       spacer(),
+      priceFootnote(),
+      spacer(),
       signoff(),
     ].join("\n"),
   },
@@ -146,6 +148,8 @@ const DEFAULTS: Record<TemplateType, { subject: string; htmlBody: string }> = {
         text: "Not sure if this is the right item for your setup? Our team can help with compatibility, alternatives, lead times, and product advice.",
         btnLabel: "Speak to the Team",
       }),
+      spacer(),
+      priceFootnote(),
       spacer(),
       signoff(),
     ].join("\n"),

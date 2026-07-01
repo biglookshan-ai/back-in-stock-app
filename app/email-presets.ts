@@ -3,7 +3,7 @@
 // 客人产品卡包进 data-bis-card → 富文本编辑器显示成小卡片（不再露出 {{}} 原始 HTML）。
 import {
   heroBand, greeting, para, sectionLabel, productCard, customerCardChip,
-  featureRows, helpCta, signoff, spacer,
+  featureRows, helpCta, signoff, spacer, priceFootnote,
 } from "./email-blocks";
 
 export type EmailPreset = {
@@ -53,6 +53,8 @@ const OUT_OF_STOCK_ALT: EmailPreset = {
       btnLabel: "Speak to the Team",
     }),
     spacer(),
+    priceFootnote(),
+    spacer(),
     signoff(),
   ].join("\n"),
 };
@@ -97,6 +99,8 @@ const READY_TO_ORDER: EmailPreset = {
       text: "Want to confirm lead times, check compatibility, or talk through alternatives? Our team has handled plenty of special orders like this one and is happy to help before you commit.",
       btnLabel: "Speak to the Team",
     }),
+    spacer(),
+    priceFootnote(),
     spacer(),
     signoff(),
   ].join("\n"),

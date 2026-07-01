@@ -79,7 +79,7 @@ export function productCard(o: {
 }) {
   const priceBlock = o.statusText
     ? `<div style="display:inline-block;margin-top:10px;background:#efeee9;color:#555;font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;padding:5px 12px;border-radius:16px;">${o.statusText}</div>`
-    : `{{#if product_price}}<div style="font-size:16px;font-weight:700;color:${INK};margin-top:10px;">{{product_price}}</div>${o.showPriceNote ? `<div style="font-size:11px;color:#999;margin-top:3px;line-height:1.5;">Price is as at the time of sending and may change — our website shows the final price.</div>` : ""}{{/if}}`;
+    : `{{#if product_price}}<div style="font-size:16px;font-weight:700;color:${INK};margin-top:10px;">{{product_price}}${o.showPriceNote ? ` <span style="color:${GOLD};font-size:13px;font-weight:700;">*</span>` : ""}</div>{{/if}}`;
   return `
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #eaeaea;border-radius:12px;overflow:hidden;">
     <tr>
@@ -93,6 +93,11 @@ export function productCard(o: {
       </td>
     </tr>
   </table>`;
+}
+
+// 价格脚注：解释产品卡价格旁的「*」，整封邮件底部统一放一条
+export function priceFootnote() {
+  return `<div style="font-size:11px;color:#999;line-height:1.5;margin:0;">* Price is as at the time of sending and may change — our website shows the final price.</div>`;
 }
 
 // 把客人产品卡包进 data-bis-card：在富文本编辑器里显示成「紧凑小卡片」而非原始 HTML。
