@@ -62,9 +62,9 @@ export function para(text: string) {
   return `<div style="font-size:14px;color:#555;line-height:1.7;margin:14px 0 0;">${text}</div>`;
 }
 
-// 小节金色标签
+// 小节金色标签（大小写按传入文本，不强制全大写）
 export function sectionLabel(text: string) {
-  return `<div style="font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:${GOLD};margin:0 0 10px;">${text}</div>`;
+  return `<div style="font-size:13px;font-weight:700;letter-spacing:.3px;color:${GOLD};margin:0 0 10px;">${text}</div>`;
 }
 
 // 横版产品卡（左图 + 右信息）——用客人订阅产品的变量渲染。

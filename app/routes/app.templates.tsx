@@ -320,6 +320,35 @@ export default function Templates() {
               </p>
             </Banner>
 
+            <Card>
+              <BlockStack gap="300">
+                <Text as="h3" variant="headingMd">{t("发送测试邮件")}</Text>
+                <InlineStack gap="300" blockAlign="end" wrap>
+                  <Box minWidth="260px">
+                    <TextField
+                      label={t("收件邮箱")}
+                      type="email"
+                      value={testEmail}
+                      onChange={setTestEmail}
+                      autoComplete="email"
+                    />
+                  </Box>
+                  <Button onClick={() => submit("test")} disabled={!testEmail}>
+                    {t("发送测试")}
+                  </Button>
+                  <Button onClick={pickTestProduct}>{testProd ? t("更换产品") : t("选择产品预览/测试")}</Button>
+                  {testProd ? (
+                    <InlineStack gap="150" blockAlign="center">
+                      <Text as="span" variant="bodySm">{testProd.label}</Text>
+                      <Button variant="plain" onClick={() => setTestProd(null)}>{t("用样例")}</Button>
+                    </InlineStack>
+                  ) : (
+                    <Text as="span" variant="bodySm" tone="subdued">{t("默认用样例产品；选一个真实产品可预览/测试真实图片与价格。")}</Text>
+                  )}
+                </InlineStack>
+              </BlockStack>
+            </Card>
+
             <InlineGrid columns={{ xs: 1, md: "2fr 3fr" }} gap="400">
               {/* 编辑器 */}
               <Card>
@@ -377,37 +406,6 @@ export default function Templates() {
                 </BlockStack>
               </Card>
             </InlineGrid>
-
-            <Card>
-              <BlockStack gap="300">
-                <Text as="h3" variant="headingMd">{t("发送测试邮件")}</Text>
-                <InlineStack gap="300" blockAlign="end">
-                  <Box minWidth="280px">
-                    <TextField
-                      label={t("收件邮箱")}
-                      type="email"
-                      value={testEmail}
-                      onChange={setTestEmail}
-                      autoComplete="email"
-                    />
-                  </Box>
-                  <Button onClick={() => submit("test")} disabled={!testEmail}>
-                    {t("发送测试")}
-                  </Button>
-                </InlineStack>
-                <InlineStack gap="200" blockAlign="center" wrap>
-                  <Button onClick={pickTestProduct}>{testProd ? t("更换产品") : t("选择产品预览/测试")}</Button>
-                  {testProd ? (
-                    <>
-                      <Text as="span" variant="bodySm">{testProd.label}</Text>
-                      <Button variant="plain" onClick={() => setTestProd(null)}>{t("用样例")}</Button>
-                    </>
-                  ) : (
-                    <Text as="span" variant="bodySm" tone="subdued">{t("默认用样例产品；选一个真实产品可预览/测试真实图片与价格。")}</Text>
-                  )}
-                </InlineStack>
-              </BlockStack>
-            </Card>
           </BlockStack>
         </Box>
       </Tabs>

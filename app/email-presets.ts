@@ -37,7 +37,8 @@ const OUT_OF_STOCK_ALT: EmailPreset = {
     spacer(),
     sectionLabel("Our recommendations"),
     para("Here are a few alternatives our team suggests for your setup:"),
-    "<!-- 用编辑器上方「插入推荐产品卡」按钮，在这里添加 1–3 个推荐产品。若暂无推荐可删除本区块（含上面「Our recommendations」标题）。 -->",
+    // 员工可见的占位提示（编辑时提醒必须先加推荐产品；加完后请删除本提示，否则会随邮件发出）
+    `<div data-bis-placeholder style="border:1.5px dashed #d4a72c;background:#fdf7e6;border-radius:8px;padding:14px 16px;margin:12px 0;font-size:13px;color:#8a6d1f;line-height:1.5;">⚠️ 发送前：点上方「Insert recommended product / 插入推荐产品卡」加 1–3 个推荐产品到这里，然后删除本提示框。（这封「无货推荐」邮件必须带推荐产品才有意义。）</div>`,
     spacer(),
     featureRows([
       { title: "Straight with you", desc: "If we can't get hold of something, we'll always tell you rather than leave you waiting." },

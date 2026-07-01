@@ -10,7 +10,8 @@ import { TitleBar, useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { getSettings } from "../models/subscription.server";
-import { DEFAULT_HEADER, DEFAULT_FOOTER } from "../email-templates.server";
+import { DEFAULT_HEADER, DEFAULT_FOOTER, composeEmail, renderTemplate } from "../email-templates.server";
+import { mailer } from "../mailer.server";
 import { useT, translate, type Lang } from "../i18n";
 import { productCard, CUSTOMER_CARD } from "../email-cards";
 import { EMAIL_PRESETS } from "../email-presets";
@@ -35,12 +36,80 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   };
 };
 
+const CURRENCY_SYMBOL: Record<string, string> = {
+  GBP: "£", USD: "$", EUR: "€", CAD: "C$", AUD: "A$", JPY: "¥", CNY: "¥", HKD: "HK$",
+};
+function fmtPrice(price?: string | null, code?: string): string | null {
+  if (!price) return null;
+  const sym = code ? CURRENCY_SYMBOL[code] : "";
+  const n = Number(price);
+  const num = Number.isFinite(n) ? n.toFixed(2).replace(/\.00$/, "") : price;
+  return sym ? `${sym}${num}` : code ? `${num} ${code}` : num;
+}
+
 export const action = async ({ request }: ActionFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
+  const { session, admin } = await authenticate.admin(request);
   const fd = await request.formData();
   const intent = String(fd.get("intent"));
   const lang: Lang = (await getSettings(session.shop)).uiLanguage === "zh" ? "zh" : "en";
-  const tr = (zh: string) => translate(zh, lang);
+  const tr = (zh: string, vars?: Record<string, string | number>) => translate(zh, lang, vars);
+
+  // 发送测试邮件（用当前草稿渲染；可选真实产品）
+  if (intent === "test") {
+    const to = String(fd.get("testEmail") ?? "");
+    const subject0 = String(fd.get("subject") ?? "");
+    const body0 = String(fd.get("htmlBody") ?? "");
+    const useShell = fd.get("useGlobalShell") !== "false";
+    const settings = await getSettings(session.shop);
+    const shop = session.shop;
+
+    let pv: Record<string, string> = {
+      product_title: "DZOFILM Arcana 32/45/75mm Anamorphic 3-Lens Set",
+      variant_title: "EF Mount / Kine Mount",
+      product_image: "https://placehold.co/240x240/1a1a1a/ffffff?text=Product",
+      product_price: "£2,629.95",
+      product_url: `https://${shop}`,
+    };
+    const testVariantId = String(fd.get("testVariantId") ?? "");
+    if (testVariantId) {
+      try {
+        const resp = await admin.graphql(
+          `#graphql
+          query TplTestVariant($id: ID!) {
+            productVariant(id: $id) { title price image { url } product { title handle featuredImage { url } } }
+            shop { currencyCode }
+          }`,
+          { variables: { id: testVariantId } },
+        );
+        const j = await resp.json();
+        const v = j?.data?.productVariant;
+        if (v?.product) {
+          const vid = testVariantId.split("/").pop() ?? "";
+          pv = {
+            product_title: v.product.title,
+            variant_title: v.title && v.title !== "Default Title" ? v.title : "",
+            product_image: v.image?.url ?? v.product.featuredImage?.url ?? "",
+            product_price: fmtPrice(v.price, j?.data?.shop?.currencyCode) ?? "",
+            product_url: v.product.handle ? `https://${shop}/products/${v.product.handle}?variant=${vid}` : `https://${shop}`,
+          };
+        }
+      } catch (e) { console.error("custom tpl test variant fetch failed", e); }
+    }
+
+    const fullBody = useShell
+      ? composeEmail(settings.emailHeader || DEFAULT_HEADER, body0, settings.emailFooter || DEFAULT_FOOTER)
+      : body0;
+    const { subject: s, html } = renderTemplate({ subject: subject0, htmlBody: fullBody }, {
+      ...pv,
+      customer_email: to, customer_name: "Alex",
+      shop_name: settings.fromName, brand_logo: settings.logoUrl, brand_color: settings.brandColor,
+      website_url: settings.websiteUrl, company_address: settings.companyAddress, support_email: settings.supportEmail,
+      unsubscribe_url: `https://${shop}`,
+    } as any);
+    const res = await mailer.send({ to, subject: s, html, fromName: settings.fromName, fromEmail: settings.fromEmail || `no-reply@${shop}` });
+    return res.ok ? { ok: true, message: tr("测试邮件已发送至 {to}", { to }) } : { ok: false, message: tr("发送失败：{error}", { error: String(res.error) }) };
+  }
+
   if (intent === "delete") {
     await prisma.customTemplate.deleteMany({ where: { id: String(fd.get("id")), shop: session.shop } });
     return { ok: true, message: tr("已删除"), deleted: true };
@@ -92,6 +161,23 @@ export default function CustomTemplates() {
   const [sel, setSel] = useState<Tpl | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const isNew = sel !== null && !sel.id;
+
+  // 发送测试邮件 + 选产品
+  const [testEmail, setTestEmail] = useState("");
+  const [testProd, setTestProd] = useState<{ variantId: string; label: string } | null>(null);
+  const pickTestProduct = async () => {
+    const picked = await shopify.resourcePicker({ type: "product", multiple: false });
+    if (!picked || picked.length === 0) return;
+    const p: any = picked[0];
+    setTestProd({ variantId: p.variants?.[0]?.id ?? "", label: p.title });
+  };
+  const sendTest = () => {
+    if (!sel) return;
+    fetcher.submit(
+      { intent: "test", subject: sel.subject, htmlBody: sel.htmlBody, useGlobalShell: String(sel.useGlobalShell), testEmail, testVariantId: testProd?.variantId ?? "" },
+      { method: "POST" },
+    );
+  };
 
   // 选产品 → 小卡片（含展示用 label/thumb），编辑器光标处插入
   const pickProductCards = async () => {
@@ -171,6 +257,27 @@ export default function CustomTemplates() {
             <Card>
               <BlockStack gap="400">
                 <Text as="h3" variant="headingMd">{isNew ? t("新建模板") : t("编辑模板")}</Text>
+
+                {/* 发送测试邮件（放在编辑器上方，正文很长时不用滚到底部）*/}
+                <Box background="bg-surface-secondary" borderRadius="200" padding="300">
+                  <BlockStack gap="200">
+                    <Text as="span" variant="bodyMd" fontWeight="medium">{t("发送测试邮件")}</Text>
+                    <InlineStack gap="200" blockAlign="end" wrap>
+                      <Box minWidth="220px">
+                        <TextField label={t("收件邮箱")} labelHidden type="email" placeholder={t("收件邮箱")} value={testEmail} onChange={setTestEmail} autoComplete="email" />
+                      </Box>
+                      <Button onClick={sendTest} disabled={!testEmail} loading={fetcher.state !== "idle" && fetcher.formData?.get("intent") === "test"}>{t("发送测试")}</Button>
+                      <Button onClick={pickTestProduct}>{testProd ? t("更换产品") : t("选择产品预览/测试")}</Button>
+                      {testProd ? (
+                        <InlineStack gap="150" blockAlign="center">
+                          <Text as="span" variant="bodySm">{testProd.label}</Text>
+                          <Button variant="plain" onClick={() => setTestProd(null)}>{t("用样例")}</Button>
+                        </InlineStack>
+                      ) : null}
+                    </InlineStack>
+                  </BlockStack>
+                </Box>
+
                 <TextField label={t("模板名称")} value={sel.name} onChange={(v) => setSel({ ...sel, name: v })} autoComplete="off" />
                 <Checkbox
                   label={t("使用全局页眉/页脚")}
